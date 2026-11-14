@@ -115,9 +115,22 @@
   .cell .rs.miss { color: var(--muted); }
   .cell .tt { font-size: 12px; color: var(--muted); }
   .sheet tfoot td { font-weight: 700; font-size: 16px; border-bottom: 0; border-top: 2px solid var(--line); }
-  .chart-box { position: relative; height: 320px; }
+  .chart-box { position: relative; height: 380px; }
   .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; }
   .toast.show { opacity: 1; }
+  .emo { font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; }
+  .emo-btn { width: 40px; height: 38px; font-size: 22px; padding: 0; border: 1px solid var(--line); border-radius: 9px; background: var(--soft); cursor: pointer; line-height: 1; }
+  .emo-btn:hover { border-color: var(--accent); }
+  .lb .emo-btn { width: 34px; height: 34px; font-size: 20px; border-width: 2px; border-radius: 50%; background: var(--panel); }
+  .pname { display: inline-flex; align-items: center; gap: 6px; }
+  .pname .emo { font-size: 18px; }
+  .picker { position: fixed; z-index: 50; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.18); width: 296px; }
+  .picker .grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; }
+  .picker .grid button { font-size: 22px; height: 34px; border: 0; background: transparent; border-radius: 7px; cursor: pointer; padding: 0; }
+  .picker .grid button:hover, .picker .grid button.on { background: var(--soft); }
+  .picker .grid button.taken { opacity: .3; }
+  .picker .custom { display: flex; gap: 6px; margin-top: 8px; align-items: center; font-size: 12px; color: var(--muted); }
+  .picker .custom input { width: 70px; text-align: center; font-size: 18px; padding: 4px; }
   .over { text-align: center; padding: 10px 0; }
   .over .crown { font-size: 40px; }
 
@@ -137,6 +150,10 @@ const SUITS = {
   hearts:   { s: '♥', red: true,  label: 'Hearts' },
 };
 const COLORS = ['#2a78d6', '#e0662b', '#1f9e6e', '#c2449a', '#8a5cd1', '#c49306', '#139bb0', '#d64545', '#5f8a1f', '#8a5a33'];
+const DEFAULT_EMOJIS = ['🦁', '🐯', '🐼', '🦊', '🐸', '🐵', '🦄', '🐙', '🐧', '🐨'];
+const EMOJI_CHOICES = ['🦁','🐯','🐼','🦊','🐸','🐵','🦄','🐙','🐧','🐨','🐶','🐱','🐻','🐰','🐷','🐮',
+  '🦉','🐢','🦈','🐝','🦖','🐉','🦚','🦜','😎','🤓','🥷','🧙','🤠','👑','😈','👻',
+  '🔥','⭐','🍀','🚀','🎯','💎','🌶️','☕','🏏','🎩','🌈','⚡','🍕','🥭','🪔','🃏'];
 const app = document.getElementById('app');
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const suitHtml = t => `<span class="${SUITS[t].red ? 'red' : ''}">${SUITS[t].s}\uFE0E</span>`;
@@ -154,6 +171,29 @@ function toast(msg) {
   clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 2200);
 }
 
+// Emoji picker popover. taken = emojis already used by other players (shown faded).
+function openPicker(anchor, current, taken, onPick) {
+  closePicker();
+  const el = document.createElement('div');
+  el.className = 'picker'; el.id = 'picker';
+  el.innerHTML = `<div class="grid">${EMOJI_CHOICES.map(e =>
+      `<button type="button" class="emo ${e === current ? 'on' : ''} ${taken.includes(e) && e !== current ? 'taken' : ''}" data-e="${e}">${e}</button>`).join('')}</div>
+    <div class="custom">Or type any emoji: <input type="text" class="emo" maxlength="8" placeholder="🙂"><button type="button" class="btn">Use</button></div>`;
+  document.body.appendChild(el);
+  const r = anchor.getBoundingClientRect();
+  el.style.left = Math.max(8, Math.min(r.left, innerWidth - el.offsetWidth - 8)) + 'px';
+  el.style.top = (r.bottom + 6 + el.offsetHeight > innerHeight ? Math.max(8, r.top - el.offsetHeight - 6) : r.bottom + 6) + 'px';
+  const pick = e => { if (e && e.trim()) { closePicker(); onPick(e.trim()); } };
+  el.addEventListener('click', ev => { const b = ev.target.closest('[data-e]'); if (b) pick(b.dataset.e); });
+  const inp = el.querySelector('input');
+  el.querySelector('.custom .btn').onclick = () => pick(inp.value);
+  inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') pick(inp.value); });
+  setTimeout(() => document.addEventListener('mousedown', outside), 0);
+}
+function outside(ev) { const p = document.getElementById('picker'); if (p && !p.contains(ev.target)) closePicker(); }
+function closePicker() { document.getElementById('picker')?.remove(); document.removeEventListener('mousedown', outside); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePicker(); });
+
 let G = null;          // loaded game
 let selNo = null;      // selected round number
 let chart = null;
@@ -162,10 +202,12 @@ function route() {
   const m = location.hash.match(/^#\/game\/(\d+)/);
   if (m) openGame(+m[1]); else showHome();
 }
-window.addEventListener('hashchange', route);
+window.addEventListener('hashchange', () => { closePicker(); route(); });
 
 /* ---------------- Home ---------------- */
-let draftPlayers = ['', '', '', ''];
+const freshDraft = () => DEFAULT_EMOJIS.slice(0, 4).map(emoji => ({ name: '', emoji }));
+let draftPlayers = freshDraft();
+const nextFreeEmoji = () => EMOJI_CHOICES.find(e => !draftPlayers.some(p => p.emoji === e)) || '🙂';
 
 async function showHome() {
   G = null; if (chart) { chart.destroy(); chart = null; }
@@ -203,7 +245,7 @@ async function showHome() {
             <div style="flex:1">
               <a href="#/game/${g.id}">${esc(g.name)}</a>
               <div class="meta">${esc(g.created_at)} · ${g.players.length} players · ${done ? 'Finished' : `Round ${g.rounds_done + 1} of ${g.rounds_total}`}</div>
-              <div class="meta">${leader && g.rounds_done ? `${done ? 'Winner' : 'Leading'}: <b>${esc(leader.name)}</b> (${leader.total})` : 'Not started'}</div>
+              <div class="meta">${leader && g.rounds_done ? `${done ? 'Winner' : 'Leading'}: <b><span class="emo">${esc(leader.emoji || '')}</span> ${esc(leader.name)}</b> (${leader.total})` : 'Not started'}</div>
             </div>
             <a class="btn" href="#/game/${g.id}">Open</a>
             <button class="btn ghost danger" data-del="${g.id}" title="Delete">✕</button>
@@ -216,14 +258,15 @@ async function showHome() {
   const renderPlayers = () => {
     plist.innerHTML = draftPlayers.map((p, i) => `
       <div class="prow"><span class="seat">${i + 1}</span>
-        <input type="text" data-i="${i}" value="${esc(p)}" placeholder="Player ${i + 1}">
+        <button type="button" class="emo-btn emo" data-emo="${i}" title="Choose emoji">${esc(p.emoji)}</button>
+        <input type="text" data-i="${i}" value="${esc(p.name)}" placeholder="Player ${i + 1}">
         <button class="btn ghost" data-rm="${i}" ${draftPlayers.length <= 2 ? 'disabled' : ''}>✕</button></div>`).join('');
     updateMeta();
   };
   const updateMeta = () => {
-    const names = draftPlayers.map((p, i) => p.trim() || `Player ${i + 1}`);
+    const names = draftPlayers.map((p, i) => p.name.trim() || `Player ${i + 1}`);
     const sel = document.getElementById('dealer'); const prev = sel.value;
-    sel.innerHTML = names.map((n, i) => `<option value="${i}">${esc(n)}</option>`).join('');
+    sel.innerHTML = names.map((n, i) => `<option value="${i}">${esc(draftPlayers[i].emoji)} ${esc(n)}</option>`).join('');
     if (prev && +prev < names.length) sel.value = prev;
     const maxEl = document.getElementById('maxc');
     const limit = Math.floor(52 / names.length);
@@ -234,24 +277,30 @@ async function showHome() {
     document.getElementById('preview').textContent =
       `${rounds} rounds: 1 → ${n}${peak ? ` → ${n}` : ''} → 1. Trump rotates ♠ ♦ ♣ ♥. Up to ${limit} cards each with ${names.length} players.`;
   };
-  plist.addEventListener('input', e => { if (e.target.dataset.i != null) { draftPlayers[+e.target.dataset.i] = e.target.value; updateMeta(); } });
-  plist.addEventListener('click', e => { const i = e.target.dataset.rm; if (i != null) { draftPlayers.splice(+i, 1); renderPlayers(); } });
-  document.getElementById('addp').onclick = () => { if (draftPlayers.length < 10) { draftPlayers.push(''); renderPlayers(); plist.querySelector(`[data-i="${draftPlayers.length - 1}"]`).focus(); } };
+  plist.addEventListener('input', e => { if (e.target.dataset.i != null) { draftPlayers[+e.target.dataset.i].name = e.target.value; updateMeta(); } });
+  plist.addEventListener('click', e => {
+    const i = e.target.dataset.rm; if (i != null) { draftPlayers.splice(+i, 1); renderPlayers(); return; }
+    const b = e.target.closest('[data-emo]');
+    if (b) { const k = +b.dataset.emo;
+      openPicker(b, draftPlayers[k].emoji, draftPlayers.map(p => p.emoji), em => { draftPlayers[k].emoji = em; renderPlayers(); }); }
+  });
+  document.getElementById('addp').onclick = () => { if (draftPlayers.length < 10) { draftPlayers.push({ name: '', emoji: nextFreeEmoji() }); renderPlayers(); plist.querySelector(`[data-i="${draftPlayers.length - 1}"]`).focus(); } };
   document.getElementById('maxc').oninput = e => { e.target.dataset.auto = '0'; updateMeta(); };
   document.getElementById('peak').onchange = updateMeta;
   renderPlayers();
 
   document.getElementById('create').onclick = async () => {
     const err = document.getElementById('err'); err.textContent = '';
-    const names = draftPlayers.map(p => p.trim()).filter(Boolean);
-    if (names.length < 2) { err.textContent = 'Enter at least two player names.'; return; }
+    const kept = draftPlayers.map((p, i) => ({ name: p.name.trim(), emoji: p.emoji, i })).filter(p => p.name);
+    if (kept.length < 2) { err.textContent = 'Enter at least two player names.'; return; }
+    const dealerIdx = Math.max(0, kept.findIndex(p => p.i === +document.getElementById('dealer').value));
     try {
       const g = await api('POST', '/api/games', {
-        name: document.getElementById('gname').value, players: names,
-        first_dealer: +document.getElementById('dealer').value, max_cards: +document.getElementById('maxc').value,
+        name: document.getElementById('gname').value, players: kept.map(({ name, emoji }) => ({ name, emoji })),
+        first_dealer: dealerIdx, max_cards: +document.getElementById('maxc').value,
         repeat_peak: document.getElementById('peak').checked, miss_rule: document.getElementById('miss').value,
       });
-      draftPlayers = ['', '', '', ''];
+      draftPlayers = freshDraft();
       location.hash = `#/game/${g.game.id}`;
     } catch (e) { err.textContent = e.message; }
   };
@@ -273,6 +322,9 @@ const isDone = r => G.players.every(p => r.entries[p.id]?.tricks != null);
 const currentRound = () => G.rounds.find(r => !isDone(r));
 const pById = id => G.players.find(p => p.id === +id);
 const pBySeat = s => G.players.find(p => p.seat === s);
+const emojiOf = p => p.emoji || DEFAULT_EMOJIS[p.seat % DEFAULT_EMOJIS.length];
+const colorOf = p => COLORS[p.seat % COLORS.length];
+const pn = p => `<span class="pname"><span class="emo">${esc(emojiOf(p))}</span>${esc(p.name)}</span>`;
 function turnOrder(r) {
   const n = G.players.length;
   return Array.from({ length: n }, (_, i) => pBySeat((r.first_seat + i) % n));
@@ -324,9 +376,9 @@ function renderGame() {
           <div><div class="cards">${r.cards} card${r.cards > 1 ? 's' : ''}</div><div class="muted">${SUITS[r.trump].label} are trump</div></div>
         </div>
         <div class="kv">
-          <span class="muted">First turn</span><b><span class="chip first">${esc(first.name)}</span></b>
-          <span class="muted">Dealer</span><b>${esc(dealer.name)} <span class="muted" style="font-weight:400">(calls last)</span></b>
-          <span class="muted">Calling order</span><span>${order.map(p => esc(p.name)).join(' → ')}</span>
+          <span class="muted">First turn</span><b><span class="chip first">${esc(emojiOf(first))} ${esc(first.name)}</span></b>
+          <span class="muted">Dealer</span><b>${pn(dealer)} <span class="muted" style="font-weight:400">(calls last)</span></b>
+          <span class="muted">Calling order</span><span>${order.map(p => `<span class="emo">${esc(emojiOf(p))}</span> ${esc(p.name)}`).join(' → ')}</span>
         </div>
         ${cur && cur.round_no !== r.round_no ? `<button class="btn" id="gocur" style="align-self:flex-start">Jump to current round (${cur.round_no})</button>` : ''}
       </div>
@@ -339,7 +391,7 @@ function renderGame() {
             const e = r.entries[p.id] || {};
             return `<tr data-pid="${p.id}">
               <td class="muted">${i + 1}</td>
-              <td><b>${esc(p.name)}</b> ${p.seat === r.dealer_seat ? '<span class="chip">Dealer</span>' : ''}${i === 0 ? ' <span class="chip first">1st</span>' : ''}</td>
+              <td><b>${pn(p)}</b> ${p.seat === r.dealer_seat ? '<span class="chip">Dealer</span>' : ''}${i === 0 ? ' <span class="chip first">1st</span>' : ''}</td>
               <td>${stepper('bid', p.id, e.bid)}<span class="forbid" data-forbid="${p.id}"></span></td>
               <td>${stepper('tricks', p.id, e.tricks)}</td>
               <td class="r num" data-rs="${p.id}"></td>
@@ -358,15 +410,15 @@ function renderGame() {
 
       <div class="panel lb">
         <h2>${cur ? 'Leaderboard' : 'Final standings'}</h2>
-        ${!cur ? `<div class="over"><div class="crown">🏆</div><b>${esc(ranked[0].name)}</b> wins with ${final[ranked[0].id]}</div>` : ''}
+        ${!cur ? `<div class="over"><div class="crown">🏆</div><b>${pn(ranked[0])}</b> wins with ${final[ranked[0].id]}</div>` : ''}
         <ol>${ranked.map((p, i) => {
           const d = lastDone ? lastDone.entries[p.id].score : null;
-          return `<li><span class="rank">${i + 1}</span><span class="dot" style="background:${COLORS[p.seat % COLORS.length]}"></span>
+          return `<li><span class="rank">${i + 1}</span><button type="button" class="emo-btn emo" data-pemo="${p.id}" title="Change ${esc(p.name)}'s emoji" style="border-color:${colorOf(p)}">${esc(emojiOf(p))}</button>
             <span class="name">${esc(p.name)}</span>
             <span class="delta ${d > 0 ? 'pos' : ''}">${d == null ? '' : (d > 0 ? '+' : '') + d}</span>
             <span class="total num">${final[p.id]}</span></li>`;
         }).join('')}</ol>
-        ${lastDone ? `<p class="hint" style="margin:10px 0 0">Change shown is from round ${lastDone.round_no}.</p>` : ''}
+        <p class="hint" style="margin:10px 0 0">${lastDone ? `Change shown is from round ${lastDone.round_no}. ` : ''}Click an emoji to change it.</p>
       </div>
     </div>
 
@@ -376,12 +428,12 @@ function renderGame() {
         <div class="sheet-wrap">
           <table class="sheet">
             <thead><tr><th style="text-align:left">Round</th><th>Cards</th><th>Trump</th><th>First</th>
-              ${G.players.map(p => `<th><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${COLORS[p.seat % COLORS.length]};margin-right:5px"></span>${esc(p.name)}</th>`).join('')}</tr></thead>
+              ${G.players.map(p => `<th style="border-bottom:3px solid ${colorOf(p)}">${pn(p)}</th>`).join('')}</tr></thead>
             <tbody>${G.rounds.map(x => {
               const done = isDone(x);
               const started = Object.values(x.entries).some(e => e.bid != null);
               return `<tr data-round="${x.round_no}" class="${x.round_no === selNo ? 'sel' : ''} ${!done && !started ? 'future' : ''}">
-                <td class="lbl">R${x.round_no}</td><td>${x.cards}</td><td>${suitHtml(x.trump)}</td><td class="muted">${esc(pBySeat(x.first_seat).name)}</td>
+                <td class="lbl">R${x.round_no}</td><td>${x.cards}</td><td>${suitHtml(x.trump)}</td><td class="muted">${pn(pBySeat(x.first_seat))}</td>
                 ${G.players.map(p => {
                   const e = x.entries[p.id];
                   if (!e || e.bid == null) return '<td></td>';
@@ -494,6 +546,14 @@ function renderGame() {
   const firstEmpty = inputs.find(i => i.value === '');
   if (firstEmpty && !isDone(r)) firstEmpty.focus();
 
+  app.querySelectorAll('[data-pemo]').forEach(b => b.onclick = () => {
+    const p = pById(b.dataset.pemo);
+    openPicker(b, emojiOf(p), G.players.map(emojiOf), async em => {
+      try { G = await api('PUT', `/api/games/${G.game.id}/players/${p.id}`, { emoji: em }); renderGame(); }
+      catch (e) { toast(e.message); }
+    });
+  });
+
   drawChart(after);
 }
 
@@ -504,24 +564,74 @@ function stepper(kind, pid, v) {
     <button type="button" data-step="1" tabindex="-1">+</button></span>`;
 }
 
+// Draws each player's emoji in a ring at the end of their line, nudged apart so ties don't overlap,
+// with a crown over the current leader.
+const emojiHeads = {
+  id: 'emojiHeads',
+  afterDatasetsDraw(c) {
+    const { ctx, chartArea } = c;
+    const panel = getComputedStyle(document.documentElement).getPropertyValue('--panel').trim();
+    const R = 15, GAP = 2 * R + 3;
+    const heads = [];
+    c.data.datasets.forEach((ds, i) => {
+      const meta = c.getDatasetMeta(i); if (meta.hidden) return;
+      let k = ds.data.length - 1; while (k >= 0 && ds.data[k] == null) k--;
+      if (k < 0) return;
+      const pt = meta.data[k];
+      heads.push({ x: pt.x, y: pt.y, y0: pt.y, ds, value: ds.data[k] });
+    });
+    // spread heads that share an x position so they don't stack on top of each other
+    const groups = {};
+    heads.forEach(h => (groups[Math.round(h.x)] ||= []).push(h));
+    Object.values(groups).forEach(g => {
+      g.sort((a, b) => a.y - b.y);
+      for (let j = 1; j < g.length; j++) if (g[j].y - g[j - 1].y < GAP) g[j].y = g[j - 1].y + GAP;
+      const overflow = g[g.length - 1].y - (chartArea.bottom + R - 4);
+      if (overflow > 0) g.forEach(h => h.y -= overflow);
+    });
+    const best = Math.max(...heads.map(h => h.value));
+    const leaders = heads.filter(h => h.value === best);
+    ctx.save();
+    heads.forEach(h => {
+      if (Math.abs(h.y - h.y0) > 1) {   // tie line back to the real point
+        ctx.strokeStyle = h.ds.borderColor; ctx.lineWidth = 1.5; ctx.setLineDash([3, 3]);
+        ctx.beginPath(); ctx.moveTo(h.x, h.y0); ctx.lineTo(h.x, h.y); ctx.stroke(); ctx.setLineDash([]);
+      }
+      ctx.beginPath(); ctx.arc(h.x, h.y, R, 0, Math.PI * 2);
+      ctx.fillStyle = panel; ctx.fill();
+      ctx.lineWidth = 3; ctx.strokeStyle = h.ds.borderColor; ctx.stroke();
+      ctx.font = '18px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(h.ds.emoji, h.x, h.y + 1);
+    });
+    if (best > 0 && leaders.length === 1) {
+      const h = leaders[0];
+      ctx.font = '16px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+      ctx.fillText('👑', h.x, h.y - R - 9);
+    }
+    ctx.restore();
+  },
+};
+
 function drawChart(after) {
   if (typeof Chart === 'undefined') return;
   const css = getComputedStyle(document.documentElement);
   const ink = css.getPropertyValue('--muted').trim(), grid = css.getPropertyValue('--line').trim();
   const labels = ['Start', ...G.rounds.map(r => `R${r.round_no} ${SUITS[r.trump].s}${r.cards}`)];
   const datasets = G.players.map(p => ({
-    label: p.name,
+    label: `${emojiOf(p)} ${p.name}`, emoji: emojiOf(p),
     data: [0, ...G.rounds.map(r => after[r.round_no] ? after[r.round_no][p.id] : null)],
-    borderColor: COLORS[p.seat % COLORS.length], backgroundColor: COLORS[p.seat % COLORS.length],
-    borderWidth: 2.5, pointRadius: 3, pointHoverRadius: 6, cubicInterpolationMode: 'monotone', spanGaps: false,
+    borderColor: colorOf(p), backgroundColor: colorOf(p),
+    borderWidth: 3, pointRadius: 3, pointHoverRadius: 6, cubicInterpolationMode: 'monotone', spanGaps: false,
   }));
   chart = new Chart(document.getElementById('trend'), {
-    type: 'line', data: { labels, datasets },
+    type: 'line', data: { labels, datasets }, plugins: [emojiHeads],
     options: {
-      maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
-      plugins: { legend: { labels: { color: ink, usePointStyle: true, boxWidth: 8 } },
+      maintainAspectRatio: false, animation: { duration: 400 }, interaction: { mode: 'index', intersect: false },
+      layout: { padding: { top: 30, right: 22, left: 6 } },
+      plugins: { legend: { labels: { color: ink, usePointStyle: true, pointStyle: 'circle', boxWidth: 8, boxHeight: 8, padding: 16, font: { size: 13 } } },
         tooltip: { itemSort: (a, b) => b.parsed.y - a.parsed.y } },
-      scales: { x: { ticks: { color: ink }, grid: { color: grid } }, y: { ticks: { color: ink }, grid: { color: grid }, beginAtZero: true } },
+      scales: { x: { ticks: { color: ink }, grid: { color: grid } }, y: { ticks: { color: ink }, grid: { color: grid }, beginAtZero: true, grace: '15%' } },
     },
   });
 }

@@ -12,6 +12,7 @@ The game is played with real cards at the table; this app is the score sheet.
 - **Scoring** — hit your call exactly and you score your call with a 5 appended (0 → 5, 3 → 35, 10 → 105). A miss scores 0 (or, optionally, minus that amount).
 - **Score sheet** — every round shows asked / won, the round score, and the running total beside it. Click a round to edit it.
 - **Leaderboard and trend chart** — ranked totals with the last round's change, and a line chart of running totals per round.
+- **Player emojis** — pick an emoji for each player (or type your own). It shows up across the dashboard, marks each line on the trend chart, and the leader gets a 👑. Click an emoji in the leaderboard to change it mid-game.
 - **Saved in SQLite** — games persist in `~/Library/Application Support/Judgement/judgement.db`; quit any time and resume.
 
 ## Run it

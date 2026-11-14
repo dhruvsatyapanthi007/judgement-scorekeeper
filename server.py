@@ -9,6 +9,7 @@ No third-party packages needed. Scores live in
 """
 import argparse
 import json
+import os
 import re
 import sqlite3
 import sys
@@ -18,7 +19,7 @@ from pathlib import Path
 
 # When packaged by PyInstaller, bundled files live under sys._MEIPASS
 ROOT = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
-DATA_DIR = Path.home() / "Library" / "Application Support" / "Judgement"
+DATA_DIR = Path(os.environ.get("JUDGEMENT_DATA_DIR") or Path.home() / "Library" / "Application Support" / "Judgement")
 DB_PATH = DATA_DIR / "judgement.db"
 STATIC = {
     "/": ("index.html", "text/html; charset=utf-8"),
@@ -26,6 +27,7 @@ STATIC = {
     "/chart.umd.min.js": ("chart.umd.min.js", "application/javascript"),
 }
 TRUMPS = ["spades", "diamonds", "clubs", "hearts"]  # no no-trump round
+DEFAULT_EMOJIS = ["🦁", "🐯", "🐼", "🦊", "🐸", "🐵", "🦄", "🐙", "🐧", "🐨"]
 
 SCHEMA = """
 PRAGMA foreign_keys = ON;
@@ -41,7 +43,8 @@ CREATE TABLE IF NOT EXISTS players (
   id INTEGER PRIMARY KEY,
   game_id INTEGER NOT NULL REFERENCES games(id) ON DELETE CASCADE,
   seat INTEGER NOT NULL,
-  name TEXT NOT NULL
+  name TEXT NOT NULL,
+  emoji TEXT
 );
 CREATE TABLE IF NOT EXISTS rounds (
   id INTEGER PRIMARY KEY,
@@ -87,6 +90,22 @@ def score_for(bid, tricks, miss_rule):
     return -hit if miss_rule == "negative" else 0
 
 
+def clean_emoji(v):
+    v = str(v or "").strip()
+    return v[:8] if v else None
+
+
+def set_emoji(conn, gid, pid, body):
+    emoji = clean_emoji(body.get("emoji"))
+    if not emoji:
+        raise ApiError("Pick an emoji")
+    cur = conn.execute("UPDATE players SET emoji=? WHERE id=? AND game_id=?", (emoji, pid, gid))
+    if not cur.rowcount:
+        raise ApiError("Player not found", 404)
+    conn.commit()
+    return load_game(conn, gid)
+
+
 class ApiError(Exception):
     def __init__(self, msg, status=400):
         super().__init__(msg)
@@ -98,7 +117,7 @@ def load_game(conn, gid):
     if not g:
         raise ApiError("Game not found", 404)
     players = [dict(r) for r in conn.execute(
-        "SELECT id, seat, name FROM players WHERE game_id=? ORDER BY seat", (gid,))]
+        "SELECT id, seat, name, emoji FROM players WHERE game_id=? ORDER BY seat", (gid,))]
     rounds = []
     for r in conn.execute("SELECT * FROM rounds WHERE game_id=? ORDER BY round_no", (gid,)):
         rd = dict(r)
@@ -114,7 +133,7 @@ def list_games(conn):
     out = []
     for g in conn.execute("SELECT * FROM games ORDER BY id DESC"):
         players = conn.execute(
-            """SELECT p.name, COALESCE(SUM(e.score),0) AS total FROM players p
+            """SELECT p.name, p.emoji, COALESCE(SUM(e.score),0) AS total FROM players p
                LEFT JOIN entries e ON e.player_id = p.id
                WHERE p.game_id=? GROUP BY p.id ORDER BY total DESC, p.seat""", (g["id"],)).fetchall()
         total_rounds = conn.execute("SELECT COUNT(*) FROM rounds WHERE game_id=?", (g["id"],)).fetchone()[0]
@@ -128,7 +147,10 @@ def list_games(conn):
 
 
 def create_game(conn, body):
-    names = [str(n).strip() for n in body.get("players", []) if str(n).strip()]
+    raw = [p if isinstance(p, dict) else {"name": p} for p in body.get("players", [])]
+    raw = [p for p in raw if str(p.get("name") or "").strip()]
+    names = [str(p["name"]).strip() for p in raw]
+    emojis = [clean_emoji(p.get("emoji")) or DEFAULT_EMOJIS[i % len(DEFAULT_EMOJIS)] for i, p in enumerate(raw)]
     if not 2 <= len(names) <= 10:
         raise ApiError("Add between 2 and 10 players")
     if len(set(n.lower() for n in names)) != len(names):
@@ -147,7 +169,8 @@ def create_game(conn, body):
                        (name, max_cards, repeat_peak, miss_rule))
     gid = cur.lastrowid
     for seat, pname in enumerate(names):
-        conn.execute("INSERT INTO players(game_id, seat, name) VALUES (?,?,?)", (gid, seat, pname))
+        conn.execute("INSERT INTO players(game_id, seat, name, emoji) VALUES (?,?,?,?)",
+                     (gid, seat, pname, emojis[seat]))
     for i, cards in enumerate(schedule(max_cards, repeat_peak)):
         dealer = (first_dealer + i) % n
         conn.execute(
@@ -243,6 +266,9 @@ class Handler(BaseHTTPRequestHandler):
                     conn.execute("DELETE FROM games WHERE id=?", (int(m[1]),))
                     conn.commit()
                     return self.send_json({"ok": True})
+                m = re.fullmatch(r"/api/games/(\d+)/players/(\d+)", path)
+                if m and method == "PUT":
+                    return self.send_json(set_emoji(conn, int(m[1]), int(m[2]), self.read_body()))
                 m = re.fullmatch(r"/api/games/(\d+)/rounds/(\d+)", path)
                 if m and method == "PUT":
                     return self.send_json(save_round(conn, int(m[1]), int(m[2]), self.read_body()))
@@ -269,6 +295,12 @@ def init_db():
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     with db() as conn:
         conn.executescript(SCHEMA)
+        # Older databases: add the emoji column and give existing players one
+        if "emoji" not in [c[1] for c in conn.execute("PRAGMA table_info(players)")]:
+            conn.execute("ALTER TABLE players ADD COLUMN emoji TEXT")
+        for pid, seat in conn.execute("SELECT id, seat FROM players WHERE emoji IS NULL").fetchall():
+            conn.execute("UPDATE players SET emoji=? WHERE id=?", (DEFAULT_EMOJIS[seat % len(DEFAULT_EMOJIS)], pid))
+        conn.commit()
 
 
 def start_in_background(host="127.0.0.1", port=0):
