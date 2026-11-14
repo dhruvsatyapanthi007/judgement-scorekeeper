@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Judgement Scorekeeper</title>
+<script src="chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #f5f3ee; --panel: #ffffff; --ink: #1c1a17; --muted: #6d675e; --line: #e5e0d6;
+    --soft: #f0ece4; --accent: #1d6b4d; --accent-ink: #ffffff; --red: #c0392b;
+    --warn-bg: #fdecea; --hit: #1d6b4d; --hit-bg: #e3f2ea; --miss-bg: #f7f2f0; --sel: #fff7e0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #131311; --panel: #1d1c19; --ink: #ece8e0; --muted: #9b958b; --line: #34322d;
+      --soft: #26241f; --accent: #4cb386; --accent-ink: #0b1a13; --red: #ff7b6c;
+      --warn-bg: #3b201c; --hit: #5fcf9a; --hit-bg: #17302440; --miss-bg: #24221f; --sel: #3a321b;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  button, input, select { font: inherit; color: inherit; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 20px 16px 60px; }
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+  header h1 { font-size: 22px; margin: 0; letter-spacing: -.01em; }
+  header .sub { color: var(--muted); }
+  .spacer { flex: 1; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+  .panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 12px; font-weight: 600; }
+  .btn { border: 1px solid var(--line); background: var(--panel); border-radius: 9px; padding: 8px 14px; cursor: pointer; }
+  .btn:hover { background: var(--soft); }
+  a.btn { text-decoration: none; display: inline-block; }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+  .btn.primary:disabled { opacity: .45; cursor: not-allowed; }
+  .btn.ghost { border-color: transparent; background: transparent; }
+  .btn.danger { color: var(--red); }
+  input[type=text], input[type=number], select { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+  input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .red { color: var(--red); }
+  .muted { color: var(--muted); }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* Home */
+  .home { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+  .field label { font-size: 13px; color: var(--muted); font-weight: 600; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .plist .prow { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+  .plist .seat { width: 22px; color: var(--muted); text-align: right; font-size: 13px; }
+  .plist input { flex: 1; }
+  .game-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .game-item:last-child { border-bottom: 0; }
+  .game-item a { color: inherit; text-decoration: none; font-weight: 600; }
+  .game-item .meta { color: var(--muted); font-size: 13px; }
+  .hint { font-size: 13px; color: var(--muted); }
+  .err { color: var(--red); font-size: 14px; min-height: 20px; }
+
+  /* Game */
+  .top { display: grid; grid-template-columns: 1.1fr 1.6fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .round-hero { display: flex; flex-direction: column; gap: 10px; }
+  .round-hero .big { display: flex; align-items: center; gap: 16px; }
+  .suit { font-size: 64px; line-height: 1; width: 72px; text-align: center; }
+  .round-hero .cards { font-size: 30px; font-weight: 700; }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 14px; }
+  .kv b { font-weight: 600; }
+  .chip { display: inline-block; padding: 2px 9px; border-radius: 99px; background: var(--soft); font-size: 12px; font-weight: 600; }
+  .chip.first { background: var(--accent); color: var(--accent-ink); }
+  .nav { display: flex; gap: 6px; align-items: center; }
+
+  table { border-collapse: collapse; width: 100%; }
+  .entry th, .entry td { padding: 7px 6px; border-bottom: 1px solid var(--line); text-align: left; }
+  .entry th { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+  .entry td.r, .entry th.r { text-align: right; }
+  .entry tr:last-child td { border-bottom: 0; }
+  .stepper { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+  .stepper button { border: 0; background: var(--soft); width: 30px; height: 34px; cursor: pointer; font-size: 17px; }
+  .stepper input { width: 46px; border: 0; border-radius: 0; text-align: center; padding: 6px 0; -moz-appearance: textfield; }
+  .stepper input::-webkit-outer-spin-button, .stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .stepper.bad { border-color: var(--red); background: var(--warn-bg); }
+  .forbid { font-size: 12px; color: var(--red); display: block; margin-top: 2px; }
+  .status { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; margin: 12px 0 10px; }
+  .status .bad { color: var(--red); font-weight: 600; }
+  .status .ok { color: var(--hit); font-weight: 600; }
+  .hitmark { font-weight: 700; }
+  .hitmark.hit { color: var(--hit); }
+  .hitmark.miss { color: var(--muted); }
+
+  .lb li { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+  .lb li:last-child { border-bottom: 0; }
+  .lb ol { list-style: none; margin: 0; padding: 0; }
+  .lb .rank { width: 22px; color: var(--muted); font-weight: 700; }
+  .lb .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .lb .name { flex: 1; font-weight: 600; }
+  .lb .total { font-size: 20px; font-weight: 700; }
+  .lb .delta { font-size: 12px; color: var(--muted); width: 44px; text-align: right; }
+  .lb .delta.pos { color: var(--hit); }
+
+  .bottom { display: grid; grid-template-columns: 1fr; gap: 16px; }
+  .sheet-wrap { overflow-x: auto; }
+  .sheet { font-size: 14px; min-width: 600px; }
+  .sheet th, .sheet td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: center; white-space: nowrap; }
+  .sheet thead th { position: sticky; top: 0; background: var(--panel); font-size: 13px; }
+  .sheet td.lbl { text-align: left; color: var(--muted); }
+  .sheet tbody tr { cursor: pointer; }
+  .sheet tbody tr:hover { background: var(--soft); }
+  .sheet tr.sel { background: var(--sel) !important; }
+  .sheet tr.future td { color: var(--muted); opacity: .55; }
+  .cell { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+  .cell .bw { font-size: 11px; color: var(--muted); }
+  .cell .sc { display: flex; gap: 8px; align-items: baseline; }
+  .cell .rs { font-weight: 700; min-width: 26px; padding: 0 5px; border-radius: 5px; }
+  .cell .rs.hit { background: var(--hit-bg); color: var(--hit); }
+  .cell .rs.miss { color: var(--muted); }
+  .cell .tt { font-size: 12px; color: var(--muted); }
+  .sheet tfoot td { font-weight: 700; font-size: 16px; border-bottom: 0; border-top: 2px solid var(--line); }
+  .chart-box { position: relative; height: 320px; }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+  .over { text-align: center; padding: 10px 0; }
+  .over .crown { font-size: 40px; }
+
+  @media (max-width: 1050px) { .top { grid-template-columns: 1fr 1fr; } .top .entry-panel { grid-column: 1 / -1; order: 3; } }
+  @media (max-width: 720px) { .home, .top { grid-template-columns: 1fr; } .top .entry-panel { order: 2; } .top .lb { order: 3; } .suit { font-size: 48px; width: 54px; } }
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const SUITS = {
+  spades:   { s: '♠', red: false, label: 'Spades' },
+  diamonds: { s: '♦', red: true,  label: 'Diamonds' },
+  clubs:    { s: '♣', red: false, label: 'Clubs' },
+  hearts:   { s: '♥', red: true,  label: 'Hearts' },
+};
+const COLORS = ['#2a78d6', '#e0662b', '#1f9e6e', '#c2449a', '#8a5cd1', '#c49306', '#139bb0', '#d64545', '#5f8a1f', '#8a5a33'];
+const app = document.getElementById('app');
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const suitHtml = t => `<span class="${SUITS[t].red ? 'red' : ''}">${SUITS[t].s}\uFE0E</span>`;
+const scoreFor = (bid, tricks, rule) => bid === tricks ? bid * 10 + 5 : (rule === 'negative' ? -(bid * 10 + 5) : 0);
+
+async function api(method, url, body) {
+  const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || r.statusText);
+  return d;
+}
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+let G = null;          // loaded game
+let selNo = null;      // selected round number
+let chart = null;
+
+function route() {
+  const m = location.hash.match(/^#\/game\/(\d+)/);
+  if (m) openGame(+m[1]); else showHome();
+}
+window.addEventListener('hashchange', route);
+
+/* ---------------- Home ---------------- */
+let draftPlayers = ['', '', '', ''];
+
+async function showHome() {
+  G = null; if (chart) { chart.destroy(); chart = null; }
+  let games = [];
+  try { games = await api('GET', '/api/games'); } catch (e) { toast(e.message); }
+  app.innerHTML = `
+    <header><h1>♠ Judgement Scorekeeper</h1><span class="sub">The scorekeeper's sheet for the table</span></header>
+    <div class="home">
+      <div class="panel">
+        <h2>New game</h2>
+        <div class="field"><label>Game name</label><input type="text" id="gname" placeholder="Diwali night"></div>
+        <div class="field">
+          <label>Players, in seating order (clockwise)</label>
+          <div class="plist" id="plist"></div>
+          <div class="row"><button class="btn" id="addp">+ Add player</button></div>
+        </div>
+        <div class="row" style="gap:16px; align-items:flex-start">
+          <div class="field"><label>First dealer</label><select id="dealer"></select></div>
+          <div class="field"><label>Max cards (n)</label><input type="number" id="maxc" min="1" style="width:90px"></div>
+          <div class="field"><label>Miss scores</label>
+            <select id="miss"><option value="zero">0</option><option value="negative">Minus (bid + 5)</option></select></div>
+        </div>
+        <div class="field"><label><input type="checkbox" id="peak" checked> Play the peak round twice (… n, n …)</label></div>
+        <p class="hint" id="preview"></p>
+        <p class="hint">Hit your call: score is your call with a 5 after it (0 → 5, 3 → 35, 10 → 105).</p>
+        <div class="err" id="err"></div>
+        <button class="btn primary" id="create">Start game</button>
+      </div>
+      <div class="panel">
+        <h2>Saved games</h2>
+        ${games.length ? games.map(g => {
+          const leader = g.players[0];
+          const done = g.rounds_done === g.rounds_total;
+          return `<div class="game-item">
+            <div style="flex:1">
+              <a href="#/game/${g.id}">${esc(g.name)}</a>
+              <div class="meta">${esc(g.created_at)} · ${g.players.length} players · ${done ? 'Finished' : `Round ${g.rounds_done + 1} of ${g.rounds_total}`}</div>
+              <div class="meta">${leader && g.rounds_done ? `${done ? 'Winner' : 'Leading'}: <b>${esc(leader.name)}</b> (${leader.total})` : 'Not started'}</div>
+            </div>
+            <a class="btn" href="#/game/${g.id}">Open</a>
+            <button class="btn ghost danger" data-del="${g.id}" title="Delete">✕</button>
+          </div>`;
+        }).join('') : '<p class="muted">No games yet. Start one on the left.</p>'}
+      </div>
+    </div>`;
+
+  const plist = document.getElementById('plist');
+  const renderPlayers = () => {
+    plist.innerHTML = draftPlayers.map((p, i) => `
+      <div class="prow"><span class="seat">${i + 1}</span>
+        <input type="text" data-i="${i}" value="${esc(p)}" placeholder="Player ${i + 1}">
+        <button class="btn ghost" data-rm="${i}" ${draftPlayers.length <= 2 ? 'disabled' : ''}>✕</button></div>`).join('');
+    updateMeta();
+  };
+  const updateMeta = () => {
+    const names = draftPlayers.map((p, i) => p.trim() || `Player ${i + 1}`);
+    const sel = document.getElementById('dealer'); const prev = sel.value;
+    sel.innerHTML = names.map((n, i) => `<option value="${i}">${esc(n)}</option>`).join('');
+    if (prev && +prev < names.length) sel.value = prev;
+    const maxEl = document.getElementById('maxc');
+    const limit = Math.floor(52 / names.length);
+    maxEl.max = limit;
+    if (!maxEl.value || +maxEl.value > limit || maxEl.dataset.auto === '1') { maxEl.value = limit; maxEl.dataset.auto = '1'; }
+    const n = +maxEl.value || limit; const peak = document.getElementById('peak').checked;
+    const rounds = n * 2 - (peak ? 0 : 1);
+    document.getElementById('preview').textContent =
+      `${rounds} rounds: 1 → ${n}${peak ? ` → ${n}` : ''} → 1. Trump rotates ♠ ♦ ♣ ♥. Up to ${limit} cards each with ${names.length} players.`;
+  };
+  plist.addEventListener('input', e => { if (e.target.dataset.i != null) { draftPlayers[+e.target.dataset.i] = e.target.value; updateMeta(); } });
+  plist.addEventListener('click', e => { const i = e.target.dataset.rm; if (i != null) { draftPlayers.splice(+i, 1); renderPlayers(); } });
+  document.getElementById('addp').onclick = () => { if (draftPlayers.length < 10) { draftPlayers.push(''); renderPlayers(); plist.querySelector(`[data-i="${draftPlayers.length - 1}"]`).focus(); } };
+  document.getElementById('maxc').oninput = e => { e.target.dataset.auto = '0'; updateMeta(); };
+  document.getElementById('peak').onchange = updateMeta;
+  renderPlayers();
+
+  document.getElementById('create').onclick = async () => {
+    const err = document.getElementById('err'); err.textContent = '';
+    const names = draftPlayers.map(p => p.trim()).filter(Boolean);
+    if (names.length < 2) { err.textContent = 'Enter at least two player names.'; return; }
+    try {
+      const g = await api('POST', '/api/games', {
+        name: document.getElementById('gname').value, players: names,
+        first_dealer: +document.getElementById('dealer').value, max_cards: +document.getElementById('maxc').value,
+        repeat_peak: document.getElementById('peak').checked, miss_rule: document.getElementById('miss').value,
+      });
+      draftPlayers = ['', '', '', ''];
+      location.hash = `#/game/${g.game.id}`;
+    } catch (e) { err.textContent = e.message; }
+  };
+  app.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
+    if (!confirm('Delete this game and all its scores? This cannot be undone.')) return;
+    await api('DELETE', `/api/games/${b.dataset.del}`); showHome();
+  });
+}
+
+/* ---------------- Game ---------------- */
+async function openGame(id) {
+  try { G = await api('GET', `/api/games/${id}`); }
+  catch (e) { toast(e.message); location.hash = ''; return; }
+  selNo = currentRound()?.round_no ?? G.rounds[G.rounds.length - 1].round_no;
+  renderGame();
+}
+
+const isDone = r => G.players.every(p => r.entries[p.id]?.tricks != null);
+const currentRound = () => G.rounds.find(r => !isDone(r));
+const pById = id => G.players.find(p => p.id === +id);
+const pBySeat = s => G.players.find(p => p.seat === s);
+function turnOrder(r) {
+  const n = G.players.length;
+  return Array.from({ length: n }, (_, i) => pBySeat((r.first_seat + i) % n));
+}
+function totals() {
+  // running totals after each completed round
+  const run = Object.fromEntries(G.players.map(p => [p.id, 0]));
+  const after = {};
+  for (const r of G.rounds) {
+    if (isDone(r)) for (const p of G.players) run[p.id] += r.entries[p.id].score;
+    after[r.round_no] = isDone(r) ? { ...run } : null;
+  }
+  return { final: run, after };
+}
+
+function renderGame() {
+  if (chart) { chart.destroy(); chart = null; }
+  const r = G.rounds.find(x => x.round_no === selNo);
+  const cur = currentRound();
+  const { final, after } = totals();
+  const prevTotals = (() => {
+    for (let i = G.rounds.indexOf(r) - 1; i >= 0; i--) if (after[G.rounds[i].round_no]) return after[G.rounds[i].round_no];
+    return Object.fromEntries(G.players.map(p => [p.id, 0]));
+  })();
+  const doneCount = G.rounds.filter(isDone).length;
+  const dealer = pBySeat(r.dealer_seat), first = pBySeat(r.first_seat);
+  const order = turnOrder(r);
+  const lastDone = [...G.rounds].reverse().find(isDone);
+  const ranked = [...G.players].sort((a, b) => final[b.id] - final[a.id]);
+
+  app.innerHTML = `
+    <header>
+      <a class="btn" href="#">← Games</a>
+      <h1>${esc(G.game.name)}</h1>
+      <span class="sub">${doneCount} of ${G.rounds.length} rounds played · hit = call with a 5 after it · miss = ${G.game.miss_rule === 'negative' ? 'minus' : '0'}</span>
+    </header>
+
+    <div class="top">
+      <div class="panel round-hero">
+        <div class="row" style="justify-content:space-between">
+          <h2 style="margin:0">Round ${r.round_no} of ${G.rounds.length}${cur && cur.round_no === r.round_no ? ' · now playing' : isDone(r) ? ' · done' : ' · upcoming'}</h2>
+          <div class="nav">
+            <button class="btn" id="prev" ${r.round_no === 1 ? 'disabled' : ''}>‹</button>
+            <button class="btn" id="next" ${r.round_no === G.rounds.length ? 'disabled' : ''}>›</button>
+          </div>
+        </div>
+        <div class="big">
+          <div class="suit">${suitHtml(r.trump)}</div>
+          <div><div class="cards">${r.cards} card${r.cards > 1 ? 's' : ''}</div><div class="muted">${SUITS[r.trump].label} are trump</div></div>
+        </div>
+        <div class="kv">
+          <span class="muted">First turn</span><b><span class="chip first">${esc(first.name)}</span></b>
+          <span class="muted">Dealer</span><b>${esc(dealer.name)} <span class="muted" style="font-weight:400">(calls last)</span></b>
+          <span class="muted">Calling order</span><span>${order.map(p => esc(p.name)).join(' → ')}</span>
+        </div>
+        ${cur && cur.round_no !== r.round_no ? `<button class="btn" id="gocur" style="align-self:flex-start">Jump to current round (${cur.round_no})</button>` : ''}
+      </div>
+
+      <div class="panel entry-panel">
+        <h2>Hands asked &amp; won</h2>
+        <table class="entry">
+          <thead><tr><th>#</th><th>Player</th><th>Asked</th><th>Won</th><th class="r">Round</th><th class="r">Total</th></tr></thead>
+          <tbody>${order.map((p, i) => {
+            const e = r.entries[p.id] || {};
+            return `<tr data-pid="${p.id}">
+              <td class="muted">${i + 1}</td>
+              <td><b>${esc(p.name)}</b> ${p.seat === r.dealer_seat ? '<span class="chip">Dealer</span>' : ''}${i === 0 ? ' <span class="chip first">1st</span>' : ''}</td>
+              <td>${stepper('bid', p.id, e.bid)}<span class="forbid" data-forbid="${p.id}"></span></td>
+              <td>${stepper('tricks', p.id, e.tricks)}</td>
+              <td class="r num" data-rs="${p.id}"></td>
+              <td class="r num" data-tt="${p.id}"></td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table>
+        <div class="status" id="status"></div>
+        <div class="err" id="rerr"></div>
+        <div class="row">
+          <button class="btn" id="saveBids">Save hands asked</button>
+          <button class="btn primary" id="saveRound">Save round</button>
+          ${Object.keys(r.entries).length ? '<button class="btn ghost" id="clearRound">Clear round</button>' : ''}
+        </div>
+      </div>
+
+      <div class="panel lb">
+        <h2>${cur ? 'Leaderboard' : 'Final standings'}</h2>
+        ${!cur ? `<div class="over"><div class="crown">🏆</div><b>${esc(ranked[0].name)}</b> wins with ${final[ranked[0].id]}</div>` : ''}
+        <ol>${ranked.map((p, i) => {
+          const d = lastDone ? lastDone.entries[p.id].score : null;
+          return `<li><span class="rank">${i + 1}</span><span class="dot" style="background:${COLORS[p.seat % COLORS.length]}"></span>
+            <span class="name">${esc(p.name)}</span>
+            <span class="delta ${d > 0 ? 'pos' : ''}">${d == null ? '' : (d > 0 ? '+' : '') + d}</span>
+            <span class="total num">${final[p.id]}</span></li>`;
+        }).join('')}</ol>
+        ${lastDone ? `<p class="hint" style="margin:10px 0 0">Change shown is from round ${lastDone.round_no}.</p>` : ''}
+      </div>
+    </div>
+
+    <div class="bottom">
+      <div class="panel">
+        <h2>Score sheet</h2>
+        <div class="sheet-wrap">
+          <table class="sheet">
+            <thead><tr><th style="text-align:left">Round</th><th>Cards</th><th>Trump</th><th>First</th>
+              ${G.players.map(p => `<th><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${COLORS[p.seat % COLORS.length]};margin-right:5px"></span>${esc(p.name)}</th>`).join('')}</tr></thead>
+            <tbody>${G.rounds.map(x => {
+              const done = isDone(x);
+              const started = Object.values(x.entries).some(e => e.bid != null);
+              return `<tr data-round="${x.round_no}" class="${x.round_no === selNo ? 'sel' : ''} ${!done && !started ? 'future' : ''}">
+                <td class="lbl">R${x.round_no}</td><td>${x.cards}</td><td>${suitHtml(x.trump)}</td><td class="muted">${esc(pBySeat(x.first_seat).name)}</td>
+                ${G.players.map(p => {
+                  const e = x.entries[p.id];
+                  if (!e || e.bid == null) return '<td></td>';
+                  if (!done) return `<td><div class="cell"><span class="bw">asked ${e.bid}</span></div></td>`;
+                  const hit = e.bid === e.tricks;
+                  return `<td><div class="cell"><span class="bw">${e.bid} asked · ${e.tricks} won</span>
+                    <span class="sc"><span class="rs ${hit ? 'hit' : 'miss'}">${e.score}</span><span class="tt">Σ ${after[x.round_no][p.id]}</span></span></div></td>`;
+                }).join('')}
+              </tr>`;
+            }).join('')}</tbody>
+            <tfoot><tr><td class="lbl" colspan="4">Total</td>${G.players.map(p => `<td class="num">${final[p.id]}</td>`).join('')}</tr></tfoot>
+          </table>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>Score trend</h2>
+        <div class="chart-box"><canvas id="trend"></canvas></div>
+        ${doneCount ? '' : '<p class="hint">The chart fills in as rounds are saved.</p>'}
+      </div>
+    </div>`;
+
+  // Navigation
+  const go = no => { selNo = no; renderGame(); };
+  document.getElementById('prev').onclick = () => go(selNo - 1);
+  document.getElementById('next').onclick = () => go(selNo + 1);
+  const gc = document.getElementById('gocur'); if (gc) gc.onclick = () => go(cur.round_no);
+  app.querySelectorAll('.sheet tbody tr').forEach(tr => tr.onclick = () => go(+tr.dataset.round));
+
+  // Entry logic
+  const panel = app.querySelector('.entry-panel');
+  const val = (kind, pid) => { const v = panel.querySelector(`input[data-kind="${kind}"][data-pid="${pid}"]`).value; return v === '' ? null : +v; };
+  const refresh = () => {
+    const bids = order.map(p => val('bid', p.id));
+    const tricks = order.map(p => val('tricks', p.id));
+    const dealerIdx = order.length - 1;
+    const othersSum = bids.slice(0, dealerIdx).reduce((a, b) => a + (b ?? 0), 0);
+    const othersIn = bids.slice(0, dealerIdx).every(b => b != null);
+    const forbidden = r.cards - othersSum;
+    panel.querySelectorAll('[data-forbid]').forEach(el => el.textContent = '');
+    panel.querySelectorAll('.stepper').forEach(el => el.classList.remove('bad'));
+    const dealerP = order[dealerIdx];
+    let bidsOk = true;
+    if (othersIn && forbidden >= 0 && forbidden <= r.cards) {
+      panel.querySelector(`[data-forbid="${dealerP.id}"]`).textContent = `can't call ${forbidden}`;
+      if (bids[dealerIdx] === forbidden) { bidsOk = false; panel.querySelector(`.stepper[data-kind="bid"][data-pid="${dealerP.id}"]`).classList.add('bad'); }
+    }
+    const allBids = bids.every(b => b != null);
+    const bidSum = bids.reduce((a, b) => a + (b ?? 0), 0);
+    const anyTr = tricks.some(t => t != null), allTr = tricks.every(t => t != null);
+    const trSum = tricks.reduce((a, b) => a + (b ?? 0), 0);
+
+    order.forEach((p, i) => {
+      const rs = panel.querySelector(`[data-rs="${p.id}"]`), tt = panel.querySelector(`[data-tt="${p.id}"]`);
+      if (bids[i] != null && tricks[i] != null) {
+        const s = scoreFor(bids[i], tricks[i], G.game.miss_rule);
+        rs.innerHTML = `<span class="hitmark ${bids[i] === tricks[i] ? 'hit' : 'miss'}">${s > 0 ? '+' : ''}${s}</span>`;
+        tt.innerHTML = `<b>${prevTotals[p.id] + s}</b>`;
+      } else { rs.innerHTML = '<span class="muted">–</span>'; tt.innerHTML = `<span class="muted">${prevTotals[p.id]}</span>`; }
+    });
+
+    const st = [];
+    st.push(`Asked: <span class="${allBids ? (bidSum > r.cards ? '' : '') : ''}">${bidSum}</span> of ${r.cards}` +
+      (allBids ? (bidSum > r.cards ? ` <span class="muted">(${bidSum - r.cards} over)</span>` : ` <span class="muted">(${r.cards - bidSum} under)</span>`) : ''));
+    if (!bidsOk) st.push(`<span class="bad">${esc(dealerP.name)} can't call ${forbidden}</span>`);
+    if (anyTr) st.push(allTr && trSum === r.cards ? `<span class="ok">Won: ${trSum} of ${r.cards} ✓</span>` : `<span class="bad">Won: ${trSum} of ${r.cards}</span>`);
+    document.getElementById('status').innerHTML = st.join('');
+    document.getElementById('saveBids').disabled = !(allBids && bidsOk);
+    document.getElementById('saveRound').disabled = !(allBids && bidsOk && allTr && trSum === r.cards);
+  };
+  panel.addEventListener('input', e => {
+    if (e.target.matches('input[data-kind]')) {
+      let v = e.target.value; if (v !== '') { v = Math.max(0, Math.min(r.cards, Math.floor(+v))); e.target.value = v; }
+      refresh();
+    }
+  });
+  panel.addEventListener('click', e => {
+    const b = e.target.closest('[data-step]'); if (!b) return;
+    const inp = b.parentElement.querySelector('input');
+    const v = inp.value === '' ? (+b.dataset.step > 0 ? -1 : 1) : +inp.value;
+    inp.value = Math.max(0, Math.min(r.cards, v + +b.dataset.step)); refresh();
+  });
+  // Enter jumps to the next input: down the "asked" column, then the "won" column
+  const inputs = [...panel.querySelectorAll('input[data-kind="bid"]'), ...panel.querySelectorAll('input[data-kind="tricks"]')];
+  inputs.forEach((inp, i) => inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); (inputs[i + 1] || document.getElementById('saveRound')).focus(); inputs[i + 1]?.select(); }
+  }));
+
+  const save = async (withTricks) => {
+    document.getElementById('rerr').textContent = '';
+    const entries = order.map(p => ({ player_id: p.id, bid: val('bid', p.id), tricks: withTricks ? val('tricks', p.id) : null }));
+    try {
+      G = await api('PUT', `/api/games/${G.game.id}/rounds/${r.round_no}`, { entries });
+      if (withTricks) {
+        toast(`Round ${r.round_no} saved`);
+        const next = currentRound();
+        if (next && next.round_no > r.round_no) selNo = next.round_no;
+      } else toast('Hands asked saved');
+      renderGame();
+    } catch (e) { document.getElementById('rerr').textContent = e.message; }
+  };
+  document.getElementById('saveBids').onclick = () => save(false);
+  document.getElementById('saveRound').onclick = () => save(true);
+  const cr = document.getElementById('clearRound');
+  if (cr) cr.onclick = async () => {
+    if (!confirm(`Clear everything entered for round ${r.round_no}?`)) return;
+    G = await api('PUT', `/api/games/${G.game.id}/rounds/${r.round_no}`, { entries: G.players.map(p => ({ player_id: p.id, bid: null, tricks: null })) });
+    renderGame();
+  };
+  refresh();
+  const firstEmpty = inputs.find(i => i.value === '');
+  if (firstEmpty && !isDone(r)) firstEmpty.focus();
+
+  drawChart(after);
+}
+
+function stepper(kind, pid, v) {
+  return `<span class="stepper" data-kind="${kind}" data-pid="${pid}">
+    <button type="button" data-step="-1" tabindex="-1">−</button>
+    <input type="number" inputmode="numeric" min="0" data-kind="${kind}" data-pid="${pid}" value="${v ?? ''}">
+    <button type="button" data-step="1" tabindex="-1">+</button></span>`;
+}
+
+function drawChart(after) {
+  if (typeof Chart === 'undefined') return;
+  const css = getComputedStyle(document.documentElement);
+  const ink = css.getPropertyValue('--muted').trim(), grid = css.getPropertyValue('--line').trim();
+  const labels = ['Start', ...G.rounds.map(r => `R${r.round_no} ${SUITS[r.trump].s}${r.cards}`)];
+  const datasets = G.players.map(p => ({
+    label: p.name,
+    data: [0, ...G.rounds.map(r => after[r.round_no] ? after[r.round_no][p.id] : null)],
+    borderColor: COLORS[p.seat % COLORS.length], backgroundColor: COLORS[p.seat % COLORS.length],
+    borderWidth: 2.5, pointRadius: 3, pointHoverRadius: 6, cubicInterpolationMode: 'monotone', spanGaps: false,
+  }));
+  chart = new Chart(document.getElementById('trend'), {
+    type: 'line', data: { labels, datasets },
+    options: {
+      maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { labels: { color: ink, usePointStyle: true, boxWidth: 8 } },
+        tooltip: { itemSort: (a, b) => b.parsed.y - a.parsed.y } },
+      scales: { x: { ticks: { color: ink }, grid: { color: grid } }, y: { ticks: { color: ink }, grid: { color: grid }, beginAtZero: true } },
+    },
+  });
+}
+
+route();
+</script>
+</body>
+</html>

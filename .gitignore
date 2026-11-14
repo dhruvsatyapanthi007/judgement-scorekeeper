@@ -1,0 +1,8 @@
+.venv/
+build/
+dist/
+*.spec
+*.db
+__pycache__/
+.DS_Store
+.claude/
