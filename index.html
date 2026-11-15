@@ -4,159 +4,244 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Judgement Scorekeeper</title>
+<link rel="stylesheet" href="fonts/fonts.css?v=2">
 <script src="chart.umd.min.js"></script>
 <style>
   :root {
-    --bg: #f5f3ee; --panel: #ffffff; --ink: #1c1a17; --muted: #6d675e; --line: #e5e0d6;
-    --soft: #f0ece4; --accent: #1d6b4d; --accent-ink: #ffffff; --red: #c0392b;
-    --warn-bg: #fdecea; --hit: #1d6b4d; --hit-bg: #e3f2ea; --miss-bg: #f7f2f0; --sel: #fff7e0;
+    --bg: #fbf3e4; --paper: #fffdf8; --ink: #2b1a12; --muted: #7a6553; --line: #ead9bc; --soft: #f6e9d2;
+    --maroon: #8e1b2e; --kumkum: #c0262d; --saffron: #e8761a; --marigold: #f2a516; --gold: #c99a2e;
+    --leaf: #3e7b2e; --hit: #2f7a3a; --hit-bg: #e3f0da; --sel: #fff0c8; --warn-bg: #fde8e4;
+    --btn-a: #c0262d; --btn-b: #8e1b2e; --btn-ink: #fff6e6; --chip: #fbe3c0; --chip-ink: #7a3a08;
+    --shadow: 0 1px 0 rgba(142, 27, 46, .04), 0 8px 24px -12px rgba(120, 60, 20, .25);
+    --dot: rgba(201, 154, 46, .16);
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #131311; --panel: #1d1c19; --ink: #ece8e0; --muted: #9b958b; --line: #34322d;
-      --soft: #26241f; --accent: #4cb386; --accent-ink: #0b1a13; --red: #ff7b6c;
-      --warn-bg: #3b201c; --hit: #5fcf9a; --hit-bg: #17302440; --miss-bg: #24221f; --sel: #3a321b;
+      --bg: #1a1013; --paper: #24171a; --ink: #f6eadb; --muted: #b59d87; --line: #46302b; --soft: #33221f;
+      --maroon: #f08a7e; --kumkum: #ff6b5e; --saffron: #ff9a3d; --marigold: #ffbd3a; --gold: #e7b957;
+      --leaf: #7cc06a; --hit: #8fd890; --hit-bg: #1f3a24; --sel: #3d2c16; --warn-bg: #44201d;
+      --btn-a: #ffb13b; --btn-b: #ff7a2e; --btn-ink: #2b1208; --chip: #4a2f17; --chip-ink: #ffd08a;
+      --shadow: 0 8px 24px -12px rgba(0, 0, 0, .6); --dot: rgba(231, 185, 87, .07);
     }
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink);
-    font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  html { background: var(--bg); }
+  body {
+    margin: 0; color: var(--ink); min-height: 100vh;
+    font: 16px/1.45 Mukta, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background-color: var(--bg);
+    background-image: radial-gradient(circle at 1px 1px, var(--dot) 1.2px, transparent 1.6px);
+    background-size: 22px 22px;
+  }
   button, input, select { font: inherit; color: inherit; }
-  .wrap { max-width: 1280px; margin: 0 auto; padding: 20px 16px 60px; }
-  header { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
-  header h1 { font-size: 22px; margin: 0; letter-spacing: -.01em; }
-  header .sub { color: var(--muted); }
+  .display { font-family: "Rozha One", Georgia, serif; font-weight: 400; }
+  .hi { font-family: "Mukta Vaani", Mukta, sans-serif; font-weight: 500; color: var(--muted); letter-spacing: 0; text-transform: none; }
+
+  /* Toran: marigold + mango-leaf garland across the top */
+  .toran {
+    height: 46px; pointer-events: none;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='46'%3E%3Cpath d='M0 3 Q32 13 64 3' stroke='%23a0522d' stroke-width='1.6' fill='none'/%3E%3Cpath d='M48 8 C41 17 43 30 48 39 C53 30 55 17 48 8Z' fill='%233e7b2e'/%3E%3Cpath d='M48 10 L48 37' stroke='%23295a1e' stroke-width='.9'/%3E%3Cline x1='16' y1='7' x2='16' y2='13' stroke='%23a0522d' stroke-width='1.2'/%3E%3Cg fill='%23e8761a'%3E%3Ccircle cx='22' cy='21' r='3.6'/%3E%3Ccircle cx='20.2' cy='25.2' r='3.6'/%3E%3Ccircle cx='16' cy='27' r='3.6'/%3E%3Ccircle cx='11.8' cy='25.2' r='3.6'/%3E%3Ccircle cx='10' cy='21' r='3.6'/%3E%3Ccircle cx='11.8' cy='16.8' r='3.6'/%3E%3Ccircle cx='16' cy='15' r='3.6'/%3E%3Ccircle cx='20.2' cy='16.8' r='3.6'/%3E%3C/g%3E%3Ccircle cx='16' cy='21' r='5' fill='%23f7b733'/%3E%3Ccircle cx='16' cy='21' r='1.8' fill='%23c0262d'/%3E%3C/svg%3E") repeat-x 0 0;
+  }
+  .border-band { height: 6px; background: repeating-linear-gradient(90deg, var(--kumkum) 0 14px, var(--marigold) 14px 18px, var(--leaf) 18px 22px, var(--marigold) 22px 26px); opacity: .85; }
+
+  .wrap { max-width: 1320px; margin: 0 auto; padding: 8px 16px 64px; }
+  header { display: flex; align-items: center; gap: 14px; margin: 6px 0 20px; flex-wrap: wrap; }
+  header h1 { font-size: 34px; line-height: 1.1; margin: 0; color: var(--maroon); }
+  header .sub { color: var(--muted); font-size: 15px; }
+  .brand { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
   .spacer { flex: 1; }
-  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
-  .panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 12px; font-weight: 600; }
-  .btn { border: 1px solid var(--line); background: var(--panel); border-radius: 9px; padding: 8px 14px; cursor: pointer; }
-  .btn:hover { background: var(--soft); }
-  a.btn { text-decoration: none; display: inline-block; }
-  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
-  .btn.primary:disabled { opacity: .45; cursor: not-allowed; }
+
+  .panel { position: relative; background: var(--paper); border: 1px solid var(--line); border-radius: 18px; padding: 20px; box-shadow: var(--shadow); overflow: hidden; }
+  .panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--maroon); margin: 0 0 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .panel h2::before { content: "❖"; color: var(--marigold); font-size: 14px; }
+  .panel h2 .hi { font-size: 14px; }
+
+  .btn { border: 1px solid var(--line); background: var(--paper); border-radius: 999px; padding: 8px 16px; cursor: pointer; font-weight: 500; transition: background .15s, border-color .15s, transform .05s; }
+  .btn:hover { background: var(--soft); border-color: var(--gold); }
+  .btn:active { transform: translateY(1px); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn.primary { background: linear-gradient(135deg, var(--btn-a), var(--btn-b)); color: var(--btn-ink); border-color: transparent; font-weight: 700; box-shadow: 0 6px 14px -8px var(--btn-b); }
+  .btn.primary:hover { filter: brightness(1.06); }
   .btn.ghost { border-color: transparent; background: transparent; }
-  .btn.danger { color: var(--red); }
-  input[type=text], input[type=number], select { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
-  input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
-  .red { color: var(--red); }
+  .btn.danger { color: var(--kumkum); }
+  a.btn { text-decoration: none; display: inline-block; color: inherit; }
+  input[type=text], input[type=number], select { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; }
+  input:focus, select:focus, .btn:focus-visible { outline: 2px solid var(--marigold); outline-offset: 1px; }
+  .red { color: var(--kumkum); }
   .muted { color: var(--muted); }
   .num { font-variant-numeric: tabular-nums; }
+  .emo { font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; font-weight: 400; }
 
   /* Home */
-  .home { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .home { display: grid; grid-template-columns: 1.05fr 1fr; gap: 20px; }
   .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
-  .field label { font-size: 13px; color: var(--muted); font-weight: 600; }
+  .field > label { font-size: 14px; color: var(--muted); font-weight: 700; }
   .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-  .plist .prow { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
-  .plist .seat { width: 22px; color: var(--muted); text-align: right; font-size: 13px; }
-  .plist input { flex: 1; }
-  .game-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .plist .prow { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .plist .seat { width: 22px; color: var(--muted); text-align: right; font-size: 14px; }
+  .plist input { flex: 1; min-width: 0; }
+  .game-item { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px dashed var(--line); }
   .game-item:last-child { border-bottom: 0; }
-  .game-item a { color: inherit; text-decoration: none; font-weight: 600; }
-  .game-item .meta { color: var(--muted); font-size: 13px; }
-  .hint { font-size: 13px; color: var(--muted); }
-  .err { color: var(--red); font-size: 14px; min-height: 20px; }
+  .game-item a.title { color: var(--ink); text-decoration: none; font-weight: 700; font-size: 18px; }
+  .game-item .meta { color: var(--muted); font-size: 14px; }
+  .hint { font-size: 14px; color: var(--muted); }
+  .err { color: var(--kumkum); font-size: 15px; min-height: 22px; }
+  .empty { text-align: center; padding: 30px 10px; color: var(--muted); }
+  .empty .big { font-size: 44px; }
+  .rules { background: var(--soft); border-radius: 12px; padding: 10px 14px; font-size: 14px; color: var(--muted); margin: 4px 0 14px; }
+  .rules b { color: var(--ink); }
 
-  /* Game */
-  .top { display: grid; grid-template-columns: 1.1fr 1.6fr 1fr; gap: 16px; margin-bottom: 16px; }
-  .round-hero { display: flex; flex-direction: column; gap: 10px; }
-  .round-hero .big { display: flex; align-items: center; gap: 16px; }
-  .suit { font-size: 64px; line-height: 1; width: 72px; text-align: center; }
-  .round-hero .cards { font-size: 30px; font-weight: 700; }
-  .kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 14px; }
-  .kv b { font-weight: 600; }
-  .chip { display: inline-block; padding: 2px 9px; border-radius: 99px; background: var(--soft); font-size: 12px; font-weight: 600; }
-  .chip.first { background: var(--accent); color: var(--accent-ink); }
+  /* Game layout */
+  .top { display: grid; grid-template-columns: 1.05fr 1.6fr 1fr; gap: 18px; margin-bottom: 18px; }
+  .round-hero { display: flex; flex-direction: column; gap: 14px; }
+  .round-hero::after { /* faint rangoli / mandala */
+    content: ""; position: absolute; width: 240px; height: 240px; right: -80px; top: -80px; border-radius: 50%; pointer-events: none;
+    background: repeating-conic-gradient(from 0deg, var(--marigold) 0 6deg, transparent 6deg 15deg);
+    -webkit-mask: radial-gradient(circle, transparent 0 28%, #000 29% 31%, transparent 32% 44%, #000 45% 70%, transparent 71%);
+            mask: radial-gradient(circle, transparent 0 28%, #000 29% 31%, transparent 32% 44%, #000 45% 70%, transparent 71%);
+    opacity: .16;
+  }
+  .hero-main { display: flex; gap: 18px; align-items: center; }
+  .pcard { width: 92px; height: 128px; flex: none; border-radius: 11px; background: #fffaf0; border: 1px solid #e3d2b3; box-shadow: 0 10px 22px -12px rgba(80, 30, 10, .55), inset 0 0 0 4px #fffaf0, inset 0 0 0 5px #ecd9b6; position: relative; display: grid; place-items: center; font-size: 54px; color: #1f1a17; }
+  .pcard.red { color: #c0262d; }
+  .pcard .ix { position: absolute; top: 9px; left: 10px; font: 700 17px/0.95 Mukta, sans-serif; text-align: center; }
+  .pcard .ix.b { top: auto; left: auto; bottom: 9px; right: 10px; transform: rotate(180deg); }
+  .pcard .ix i { display: block; font-style: normal; font-size: 15px; }
+  .trump-name { font-size: 34px; line-height: 1.05; color: var(--maroon); }
+  .trump-sub { color: var(--muted); }
+  .cards-count { font-weight: 700; font-size: 18px; }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 8px 14px; font-size: 15px; align-items: center; }
+  .kv .k { color: var(--muted); font-size: 14px; line-height: 1.15; }
+  .kv .k .hi { display: block; font-size: 12px; }
+  .chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 10px; border-radius: 99px; background: var(--chip); color: var(--chip-ink); font-size: 13px; font-weight: 700; }
+  .chip.first { background: linear-gradient(135deg, var(--saffron), var(--marigold)); color: #3a1604; }
+  .order { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
+  .order .arrow { color: var(--gold); }
   .nav { display: flex; gap: 6px; align-items: center; }
+  .nav .btn { padding: 4px 12px; font-size: 18px; }
 
   table { border-collapse: collapse; width: 100%; }
-  .entry th, .entry td { padding: 7px 6px; border-bottom: 1px solid var(--line); text-align: left; }
-  .entry th { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+  .entry th, .entry td { padding: 8px 6px; border-bottom: 1px dashed var(--line); text-align: left; }
+  .entry th { font-size: 12px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+  .entry th .hi { display: block; font-size: 12px; text-transform: none; }
   .entry td.r, .entry th.r { text-align: right; }
-  .entry tr:last-child td { border-bottom: 0; }
-  .stepper { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
-  .stepper button { border: 0; background: var(--soft); width: 30px; height: 34px; cursor: pointer; font-size: 17px; }
-  .stepper input { width: 46px; border: 0; border-radius: 0; text-align: center; padding: 6px 0; -moz-appearance: textfield; }
+  .entry tbody tr:last-child td { border-bottom: 0; }
+  .entry tr.dealer-row td { background: color-mix(in srgb, var(--chip) 35%, transparent); }
+  .pname { display: inline-flex; align-items: center; gap: 6px; }
+  .pname .emo { font-size: 19px; }
+  .stepper { display: inline-flex; align-items: center; border: 1.5px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--paper); }
+  .stepper button { border: 0; background: var(--soft); width: 32px; height: 36px; cursor: pointer; font-size: 18px; color: var(--maroon); font-weight: 700; }
+  .stepper button:hover { background: var(--chip); }
+  .stepper input { width: 44px; border: 0; border-radius: 0; text-align: center; padding: 6px 0; font-weight: 700; font-size: 17px; -moz-appearance: textfield; background: transparent; }
   .stepper input::-webkit-outer-spin-button, .stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-  .stepper.bad { border-color: var(--red); background: var(--warn-bg); }
-  .forbid { font-size: 12px; color: var(--red); display: block; margin-top: 2px; }
-  .status { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; margin: 12px 0 10px; }
-  .status .bad { color: var(--red); font-weight: 600; }
-  .status .ok { color: var(--hit); font-weight: 600; }
+  .stepper:focus-within { border-color: var(--marigold); }
+  .stepper.bad { border-color: var(--kumkum); background: var(--warn-bg); }
+  .forbid { font-size: 12px; color: var(--kumkum); display: block; margin-top: 2px; font-weight: 500; }
+  .status { display: flex; gap: 16px; flex-wrap: wrap; font-size: 14px; margin: 12px 0 8px; }
+  .status .bad { color: var(--kumkum); font-weight: 700; }
+  .status .ok { color: var(--hit); font-weight: 700; }
   .hitmark { font-weight: 700; }
   .hitmark.hit { color: var(--hit); }
   .hitmark.miss { color: var(--muted); }
 
-  .lb li { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); }
-  .lb li:last-child { border-bottom: 0; }
+  /* Leaderboard */
   .lb ol { list-style: none; margin: 0; padding: 0; }
-  .lb .rank { width: 22px; color: var(--muted); font-weight: 700; }
-  .lb .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
-  .lb .name { flex: 1; font-weight: 600; }
-  .lb .total { font-size: 20px; font-weight: 700; }
-  .lb .delta { font-size: 12px; color: var(--muted); width: 44px; text-align: right; }
-  .lb .delta.pos { color: var(--hit); }
+  .lb li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px dashed var(--line); }
+  .lb li:last-child { border-bottom: 0; }
+  .rankcard { width: 26px; height: 34px; flex: none; border-radius: 5px; background: #fffaf0; border: 1px solid #e3d2b3; display: grid; place-items: center; font: 700 14px/1 Mukta, sans-serif; color: #1f1a17; box-shadow: 0 3px 6px -4px rgba(80, 30, 10, .5); }
+  .rankcard.k { color: #c0262d; }
+  .rankcard.plain { background: transparent; border-color: transparent; box-shadow: none; color: var(--muted); }
+  .lb .who { flex: 1; min-width: 0; line-height: 1.15; }
+  .lb .who b { display: block; font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lb .title { font-size: 12px; color: var(--gold); font-weight: 700; letter-spacing: .04em; }
+  .lb .total { font-size: 24px; font-weight: 700; min-width: 44px; text-align: right; }
+  .lb .delta { font-size: 13px; color: var(--muted); width: 40px; text-align: right; }
+  .lb .delta.pos { color: var(--hit); font-weight: 700; }
+  .emo-btn { width: 42px; height: 40px; font-size: 22px; padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--soft); cursor: pointer; line-height: 1; flex: none; }
+  .emo-btn:hover { border-color: var(--marigold); }
+  .cdot { width: 12px; height: 12px; border-radius: 50%; flex: none; box-shadow: 0 0 0 3px var(--paper), 0 0 0 4px var(--line); }
+  .chart-emojis { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; font-size: 14px; }
+  .emo-pill { border-width: 2px; padding: 3px 12px 3px 8px; font-size: 14px; }
+  .emo-pill .emo { font-size: 17px; }
+  .winner { text-align: center; padding: 6px 0 14px; }
+  .winner .trophy { font-size: 46px; line-height: 1; }
+  .winner .display { font-size: 26px; color: var(--maroon); }
 
-  .bottom { display: grid; grid-template-columns: 1fr; gap: 16px; }
+  /* Score sheet */
+  .bottom { display: grid; grid-template-columns: 1fr; gap: 18px; }
   .sheet-wrap { overflow-x: auto; }
-  .sheet { font-size: 14px; min-width: 600px; }
-  .sheet th, .sheet td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: center; white-space: nowrap; }
-  .sheet thead th { position: sticky; top: 0; background: var(--panel); font-size: 13px; }
-  .sheet td.lbl { text-align: left; color: var(--muted); }
+  .sheet { font-size: 15px; min-width: 640px; }
+  .sheet th, .sheet td { padding: 7px 8px; border-bottom: 1px dashed var(--line); text-align: center; white-space: nowrap; }
+  .sheet thead th { position: sticky; top: 0; background: var(--paper); font-size: 15px; }
+  .sheet td.lbl { text-align: left; color: var(--muted); font-weight: 700; }
   .sheet tbody tr { cursor: pointer; }
   .sheet tbody tr:hover { background: var(--soft); }
   .sheet tr.sel { background: var(--sel) !important; }
-  .sheet tr.future td { color: var(--muted); opacity: .55; }
+  .sheet tr.future td { opacity: .45; }
   .cell { display: flex; flex-direction: column; align-items: center; gap: 1px; }
-  .cell .bw { font-size: 11px; color: var(--muted); }
+  .cell .bw { font-size: 12px; color: var(--muted); }
   .cell .sc { display: flex; gap: 8px; align-items: baseline; }
-  .cell .rs { font-weight: 700; min-width: 26px; padding: 0 5px; border-radius: 5px; }
+  .cell .rs { font-weight: 700; min-width: 28px; padding: 0 6px; border-radius: 6px; }
   .cell .rs.hit { background: var(--hit-bg); color: var(--hit); }
   .cell .rs.miss { color: var(--muted); }
-  .cell .tt { font-size: 12px; color: var(--muted); }
-  .sheet tfoot td { font-weight: 700; font-size: 16px; border-bottom: 0; border-top: 2px solid var(--line); }
+  .cell .tt { font-size: 13px; color: var(--muted); }
+  .sheet tfoot td { font-weight: 700; font-size: 19px; border-bottom: 0; border-top: 2px solid var(--gold); color: var(--maroon); }
   .chart-box { position: relative; height: 380px; }
-  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; }
-  .toast.show { opacity: 1; }
-  .emo { font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; }
-  .emo-btn { width: 40px; height: 38px; font-size: 22px; padding: 0; border: 1px solid var(--line); border-radius: 9px; background: var(--soft); cursor: pointer; line-height: 1; }
-  .emo-btn:hover { border-color: var(--accent); }
-  .lb .emo-btn { width: 34px; height: 34px; font-size: 20px; border-width: 2px; border-radius: 50%; background: var(--panel); }
-  .pname { display: inline-flex; align-items: center; gap: 6px; }
-  .pname .emo { font-size: 18px; }
-  .picker { position: fixed; z-index: 50; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.18); width: 296px; }
-  .picker .grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; }
-  .picker .grid button { font-size: 22px; height: 34px; border: 0; background: transparent; border-radius: 7px; cursor: pointer; padding: 0; }
-  .picker .grid button:hover, .picker .grid button.on { background: var(--soft); }
-  .picker .grid button.taken { opacity: .3; }
-  .picker .custom { display: flex; gap: 6px; margin-top: 8px; align-items: center; font-size: 12px; color: var(--muted); }
-  .picker .custom input { width: 70px; text-align: center; font-size: 18px; padding: 4px; }
-  .over { text-align: center; padding: 10px 0; }
-  .over .crown { font-size: 40px; }
 
-  @media (max-width: 1050px) { .top { grid-template-columns: 1fr 1fr; } .top .entry-panel { grid-column: 1 / -1; order: 3; } }
-  @media (max-width: 720px) { .home, .top { grid-template-columns: 1fr; } .top .entry-panel { order: 2; } .top .lb { order: 3; } .suit { font-size: 48px; width: 54px; } }
+  /* Emoji picker */
+  .picker { position: fixed; z-index: 50; background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 10px; box-shadow: 0 14px 34px rgba(60, 20, 10, .25); width: 300px; }
+  .picker .grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; }
+  .picker .grid button { font-size: 22px; height: 34px; border: 0; background: transparent; border-radius: 8px; cursor: pointer; padding: 0; }
+  .picker .grid button:hover, .picker .grid button.on { background: var(--chip); }
+  .picker .grid button.taken { opacity: .3; }
+  .picker .custom { display: flex; gap: 6px; margin-top: 8px; align-items: center; font-size: 13px; color: var(--muted); }
+  .picker .custom input { width: 70px; text-align: center; font-size: 18px; padding: 4px; }
+
+  .toast { position: fixed; bottom: 22px; left: 50%; transform: translate(-50%, 10px); background: var(--maroon); color: #fff6e6; padding: 11px 20px; border-radius: 999px; font-size: 16px; font-weight: 500; opacity: 0; transition: opacity .25s, transform .25s; pointer-events: none; box-shadow: 0 10px 24px -10px rgba(0,0,0,.5); max-width: calc(100vw - 32px); text-align: center; }
+  @media (prefers-color-scheme: dark) { .toast { background: var(--marigold); color: #2b1208; } }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  /* Marigold petal shower on a win */
+  .petal { position: fixed; top: -20px; z-index: 60; width: 12px; height: 8px; border-radius: 60% 40% 60% 40%; pointer-events: none; animation: fall linear forwards; }
+  @keyframes fall { to { transform: translateY(105vh) rotate(540deg); opacity: .85; } }
+  @media (prefers-reduced-motion: reduce) { .petal { display: none; } }
+
+  @media (max-width: 1100px) { .top { grid-template-columns: 1fr 1fr; } .top .entry-panel { grid-column: 1 / -1; order: 3; } }
+  @media (max-width: 720px) {
+    .home, .top { grid-template-columns: 1fr; }
+    .top .entry-panel { order: 2; } .top .lb { order: 3; }
+    header h1 { font-size: 28px; }
+    .pcard { width: 76px; height: 106px; font-size: 44px; }
+    .entry .r:nth-child(5), .entry th:first-child, .entry td:first-child { display: none; }
+    .entry th, .entry td { padding: 8px 3px; }
+    .stepper button { width: 26px; height: 34px; }
+    .stepper input { width: 30px; }
+    .entry .chip { font-size: 11px; padding: 0 7px; }
+  }
 </style>
 </head>
 <body>
+<div class="toran" aria-hidden="true"></div>
 <div class="wrap" id="app"></div>
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status"></div>
 
 <script>
 const SUITS = {
-  spades:   { s: '♠', red: false, label: 'Spades' },
-  diamonds: { s: '♦', red: true,  label: 'Diamonds' },
-  clubs:    { s: '♣', red: false, label: 'Clubs' },
-  hearts:   { s: '♥', red: true,  label: 'Hearts' },
+  spades:   { s: '♠', red: false, label: 'Spades',   hi: 'Kali',   dev: 'કાળી' },
+  diamonds: { s: '♦', red: true,  label: 'Diamonds', hi: 'Charkat', dev: 'ચરકટ' },
+  clubs:    { s: '♣', red: false, label: 'Clubs',    hi: 'Fallai', dev: 'ફલ્લાઈ' },
+  hearts:   { s: '♥', red: true,  label: 'Hearts',   hi: 'Laal',   dev: 'લાલ' },
 };
-const COLORS = ['#2a78d6', '#e0662b', '#1f9e6e', '#c2449a', '#8a5cd1', '#c49306', '#139bb0', '#d64545', '#5f8a1f', '#8a5a33'];
+// peacock, kumkum, mehendi, haldi, jamun, rani, teal, saffron, indigo, kattha
+const COLORS = ['#1f6fa8', '#c0262d', '#4e7a27', '#d99a06', '#6b3fa0', '#d6337f', '#0e8c8c', '#e8651a', '#2e3a8c', '#8a5a33'];
+const RANKS = [{ c: 'K', t: 'Raja' }, { c: 'Q', t: 'Rani' }, { c: 'J', t: 'Gulam' }];
 const DEFAULT_EMOJIS = ['🦁', '🐯', '🐼', '🦊', '🐸', '🐵', '🦄', '🐙', '🐧', '🐨'];
-const EMOJI_CHOICES = ['🦁','🐯','🐼','🦊','🐸','🐵','🦄','🐙','🐧','🐨','🐶','🐱','🐻','🐰','🐷','🐮',
+const EMOJI_CHOICES = ['🦁','🐯','🐼','🦊','🐸','🐵','🦄','🐙','🐧','🐨','🐶','🐱','🐻','🐰','🐘','🐮',
   '🦉','🐢','🦈','🐝','🦖','🐉','🦚','🦜','😎','🤓','🥷','🧙','🤠','👑','😈','👻',
   '🔥','⭐','🍀','🚀','🎯','💎','🌶️','☕','🏏','🎩','🌈','⚡','🍕','🥭','🪔','🃏'];
 const app = document.getElementById('app');
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const suitHtml = t => `<span class="${SUITS[t].red ? 'red' : ''}">${SUITS[t].s}\uFE0E</span>`;
+const suitHtml = t => `<span class="${SUITS[t].red ? 'red' : ''}">${SUITS[t].s}︎</span>`;
 const scoreFor = (bid, tricks, rule) => bid === tricks ? bid * 10 + 5 : (rule === 'negative' ? -(bid * 10 + 5) : 0);
 
 async function api(method, url, body) {
@@ -165,10 +250,24 @@ async function api(method, url, body) {
   if (!r.ok) throw new Error(d.error || r.statusText);
   return d;
 }
-function toast(msg) {
+function toast(msg, ms = 2600) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');
-  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 2200);
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), ms);
+}
+function petals() {
+  const cols = ['#e8761a', '#f2a516', '#f7b733', '#c0262d', '#ffd166'];
+  for (let i = 0; i < 70; i++) {
+    const p = document.createElement('div');
+    p.className = 'petal';
+    p.style.left = Math.random() * 100 + 'vw';
+    p.style.background = cols[i % cols.length];
+    p.style.animationDuration = 2.8 + Math.random() * 2.6 + 's';
+    p.style.animationDelay = Math.random() * 1.2 + 's';
+    p.style.transform = `rotate(${Math.random() * 360}deg)`;
+    document.body.appendChild(p);
+    setTimeout(() => p.remove(), 7000);
+  }
 }
 
 // Emoji picker popover. taken = emojis already used by other players (shown faded).
@@ -204,6 +303,9 @@ function route() {
 }
 window.addEventListener('hashchange', () => { closePicker(); route(); });
 
+const brand = sub => `
+  <div class="brand"><h1 class="display">♠ Judgement</h1><span class="sub"><span class="hi">જજમેન્ટ</span> · Kachuful${sub ? ' · ' + sub : ''}</span></div>`;
+
 /* ---------------- Home ---------------- */
 const freshDraft = () => DEFAULT_EMOJIS.slice(0, 4).map(emoji => ({ name: '', emoji }));
 let draftPlayers = freshDraft();
@@ -214,43 +316,45 @@ async function showHome() {
   let games = [];
   try { games = await api('GET', '/api/games'); } catch (e) { toast(e.message); }
   app.innerHTML = `
-    <header><h1>♠ Judgement Scorekeeper</h1><span class="sub">The scorekeeper's sheet for the table</span></header>
+    <header>${brand('score no hisaab')}</header>
     <div class="home">
       <div class="panel">
-        <h2>New game</h2>
-        <div class="field"><label>Game name</label><input type="text" id="gname" placeholder="Diwali night"></div>
+        <h2>New game <span class="hi">· નવી રમત</span></h2>
+        <div class="field"><label for="gname">Game name</label><input type="text" id="gname" placeholder="Diwali night"></div>
         <div class="field">
           <label>Players, in seating order (clockwise)</label>
+          <span class="hint" style="margin-top:-4px">The emoji marks each player on the score trend chart.</span>
           <div class="plist" id="plist"></div>
           <div class="row"><button class="btn" id="addp">+ Add player</button></div>
         </div>
         <div class="row" style="gap:16px; align-items:flex-start">
-          <div class="field"><label>First dealer</label><select id="dealer"></select></div>
-          <div class="field"><label>Max cards (n)</label><input type="number" id="maxc" min="1" style="width:90px"></div>
-          <div class="field"><label>Miss scores</label>
+          <div class="field"><label for="dealer">First dealer</label><select id="dealer"></select></div>
+          <div class="field"><label for="maxc">Max cards (n)</label><input type="number" id="maxc" min="1" style="width:90px"></div>
+          <div class="field"><label for="miss">Miss scores</label>
             <select id="miss"><option value="zero">0</option><option value="negative">Minus (bid + 5)</option></select></div>
         </div>
-        <div class="field"><label><input type="checkbox" id="peak" checked> Play the peak round twice (… n, n …)</label></div>
-        <p class="hint" id="preview"></p>
-        <p class="hint">Hit your call: score is your call with a 5 after it (0 → 5, 3 → 35, 10 → 105).</p>
+        <div class="field"><label style="font-weight:500"><input type="checkbox" id="peak" checked> Play the peak round twice (… n, n …)</label></div>
+        <div class="rules"><span id="preview"></span><br>
+          <b>Banyu?</b> <span class="hi">બન્યું?</span> You score your call with a 5 after it: 0 → 5, 3 → 35, 10 → 105.</div>
         <div class="err" id="err"></div>
-        <button class="btn primary" id="create">Start game</button>
+        <button class="btn primary" id="create">Chalo ramiye · Start game</button>
       </div>
       <div class="panel">
-        <h2>Saved games</h2>
+        <h2>Saved games <span class="hi">· જૂની રમતો</span></h2>
         ${games.length ? games.map(g => {
           const leader = g.players[0];
-          const done = g.rounds_done === g.rounds_total;
+          const done = g.rounds_total > 0 && g.rounds_done === g.rounds_total;
           return `<div class="game-item">
-            <div style="flex:1">
-              <a href="#/game/${g.id}">${esc(g.name)}</a>
-              <div class="meta">${esc(g.created_at)} · ${g.players.length} players · ${done ? 'Finished' : `Round ${g.rounds_done + 1} of ${g.rounds_total}`}</div>
-              <div class="meta">${leader && g.rounds_done ? `${done ? 'Winner' : 'Leading'}: <b><span class="emo">${esc(leader.emoji || '')}</span> ${esc(leader.name)}</b> (${leader.total})` : 'Not started'}</div>
+            <div style="flex:1; min-width:0">
+              <a class="title" href="#/game/${g.id}">${esc(g.name)}</a>
+              <div class="meta">${esc(g.created_at)} · ${done ? 'Finished' : `Round ${g.rounds_done + 1} of ${g.rounds_total}`}</div>
+              <div class="meta">${g.players.map(p => esc(p.name)).join(' · ')}</div>
+              <div class="meta">${leader && g.rounds_done ? `${done ? '🏆 Winner' : 'Aagal'}: <b>${esc(leader.name)}</b> (${leader.total})` : 'Not started yet'}</div>
             </div>
-            <a class="btn" href="#/game/${g.id}">Open</a>
-            <button class="btn ghost danger" data-del="${g.id}" title="Delete">✕</button>
+            <a class="btn" href="#/game/${g.id}">${done ? 'View' : 'Continue'}</a>
+            <button class="btn ghost danger" data-del="${g.id}" title="Delete game" aria-label="Delete ${esc(g.name)}">✕</button>
           </div>`;
-        }).join('') : '<p class="muted">No games yet. Start one on the left.</p>'}
+        }).join('') : `<div class="empty"><div class="big emo">🃏</div><p>Haju koi game nathi.<br>Start one on the left. Chalo, ramiye!</p></div>`}
       </div>
     </div>`;
 
@@ -258,15 +362,15 @@ async function showHome() {
   const renderPlayers = () => {
     plist.innerHTML = draftPlayers.map((p, i) => `
       <div class="prow"><span class="seat">${i + 1}</span>
-        <button type="button" class="emo-btn emo" data-emo="${i}" title="Choose emoji">${esc(p.emoji)}</button>
-        <input type="text" data-i="${i}" value="${esc(p.name)}" placeholder="Player ${i + 1}">
-        <button class="btn ghost" data-rm="${i}" ${draftPlayers.length <= 2 ? 'disabled' : ''}>✕</button></div>`).join('');
+        <button type="button" class="emo-btn emo" data-emo="${i}" title="Emoji for the score trend chart">${esc(p.emoji)}</button>
+        <input type="text" data-i="${i}" value="${esc(p.name)}" placeholder="Player ${i + 1}" aria-label="Player ${i + 1} name">
+        <button class="btn ghost" data-rm="${i}" ${draftPlayers.length <= 2 ? 'disabled' : ''} aria-label="Remove player ${i + 1}">✕</button></div>`).join('');
     updateMeta();
   };
   const updateMeta = () => {
     const names = draftPlayers.map((p, i) => p.name.trim() || `Player ${i + 1}`);
     const sel = document.getElementById('dealer'); const prev = sel.value;
-    sel.innerHTML = names.map((n, i) => `<option value="${i}">${esc(draftPlayers[i].emoji)} ${esc(n)}</option>`).join('');
+    sel.innerHTML = names.map((n, i) => `<option value="${i}">${esc(n)}</option>`).join('');
     if (prev && +prev < names.length) sel.value = prev;
     const maxEl = document.getElementById('maxc');
     const limit = Math.floor(52 / names.length);
@@ -274,12 +378,12 @@ async function showHome() {
     if (!maxEl.value || +maxEl.value > limit || maxEl.dataset.auto === '1') { maxEl.value = limit; maxEl.dataset.auto = '1'; }
     const n = +maxEl.value || limit; const peak = document.getElementById('peak').checked;
     const rounds = n * 2 - (peak ? 0 : 1);
-    document.getElementById('preview').textContent =
-      `${rounds} rounds: 1 → ${n}${peak ? ` → ${n}` : ''} → 1. Trump rotates ♠ ♦ ♣ ♥. Up to ${limit} cards each with ${names.length} players.`;
+    document.getElementById('preview').innerHTML =
+      `<b>${rounds} rounds</b>: 1 → ${n}${peak ? ` → ${n}` : ''} → 1. Trump goes Kali ♠ · Charkat ♦ · Fallai ♣ · Laal ♥. Up to ${limit} cards each for ${names.length} players.`;
   };
   plist.addEventListener('input', e => { if (e.target.dataset.i != null) { draftPlayers[+e.target.dataset.i].name = e.target.value; updateMeta(); } });
   plist.addEventListener('click', e => {
-    const i = e.target.dataset.rm; if (i != null) { draftPlayers.splice(+i, 1); renderPlayers(); return; }
+    const i = e.target.closest('[data-rm]')?.dataset.rm; if (i != null) { draftPlayers.splice(+i, 1); renderPlayers(); return; }
     const b = e.target.closest('[data-emo]');
     if (b) { const k = +b.dataset.emo;
       openPicker(b, draftPlayers[k].emoji, draftPlayers.map(p => p.emoji), em => { draftPlayers[k].emoji = em; renderPlayers(); }); }
@@ -302,6 +406,7 @@ async function showHome() {
       });
       draftPlayers = freshDraft();
       location.hash = `#/game/${g.game.id}`;
+      toast('Chalo ramiye! 🃏');
     } catch (e) { err.textContent = e.message; }
   };
   app.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
@@ -324,7 +429,7 @@ const pById = id => G.players.find(p => p.id === +id);
 const pBySeat = s => G.players.find(p => p.seat === s);
 const emojiOf = p => p.emoji || DEFAULT_EMOJIS[p.seat % DEFAULT_EMOJIS.length];
 const colorOf = p => COLORS[p.seat % COLORS.length];
-const pn = p => `<span class="pname"><span class="emo">${esc(emojiOf(p))}</span>${esc(p.name)}</span>`;
+const pn = p => `<span class="pname">${esc(p.name)}</span>`;
 function turnOrder(r) {
   const n = G.players.length;
   return Array.from({ length: n }, (_, i) => pBySeat((r.first_seat + i) % n));
@@ -354,42 +459,51 @@ function renderGame() {
   const order = turnOrder(r);
   const lastDone = [...G.rounds].reverse().find(isDone);
   const ranked = [...G.players].sort((a, b) => final[b.id] - final[a.id]);
+  const suit = SUITS[r.trump];
+  const state = cur && cur.round_no === r.round_no ? 'now playing' : isDone(r) ? 'done' : 'upcoming';
 
   app.innerHTML = `
     <header>
       <a class="btn" href="#">← Games</a>
-      <h1>${esc(G.game.name)}</h1>
-      <span class="sub">${doneCount} of ${G.rounds.length} rounds played · hit = call with a 5 after it · miss = ${G.game.miss_rule === 'negative' ? 'minus' : '0'}</span>
+      ${brand(esc(G.game.name))}
+      <span class="spacer"></span>
+      <span class="sub">${doneCount} of ${G.rounds.length} rounds played · miss = ${G.game.miss_rule === 'negative' ? 'minus' : '0'}</span>
     </header>
 
     <div class="top">
       <div class="panel round-hero">
         <div class="row" style="justify-content:space-between">
-          <h2 style="margin:0">Round ${r.round_no} of ${G.rounds.length}${cur && cur.round_no === r.round_no ? ' · now playing' : isDone(r) ? ' · done' : ' · upcoming'}</h2>
+          <h2 style="margin:0">Round ${r.round_no} of ${G.rounds.length} <span class="hi">· ${state}</span></h2>
           <div class="nav">
-            <button class="btn" id="prev" ${r.round_no === 1 ? 'disabled' : ''}>‹</button>
-            <button class="btn" id="next" ${r.round_no === G.rounds.length ? 'disabled' : ''}>›</button>
+            <button class="btn" id="prev" ${r.round_no === 1 ? 'disabled' : ''} aria-label="Previous round">‹</button>
+            <button class="btn" id="next" ${r.round_no === G.rounds.length ? 'disabled' : ''} aria-label="Next round">›</button>
           </div>
         </div>
-        <div class="big">
-          <div class="suit">${suitHtml(r.trump)}</div>
-          <div><div class="cards">${r.cards} card${r.cards > 1 ? 's' : ''}</div><div class="muted">${SUITS[r.trump].label} are trump</div></div>
+        <div class="hero-main">
+          <div class="pcard ${suit.red ? 'red' : ''}" aria-label="${suit.label} trump, ${r.cards} cards">
+            <span class="ix">${r.cards}<i>${suit.s}︎</i></span>${suit.s}︎<span class="ix b">${r.cards}<i>${suit.s}︎</i></span>
+          </div>
+          <div>
+            <div class="trump-name display">${suit.hi} <span class="hi" style="font-size:20px">${suit.dev}</span></div>
+            <div class="trump-sub">${suit.label} are trump</div>
+            <div class="cards-count">${r.cards} card${r.cards > 1 ? 's' : ''} each</div>
+          </div>
         </div>
         <div class="kv">
-          <span class="muted">First turn</span><b><span class="chip first">${esc(emojiOf(first))} ${esc(first.name)}</span></b>
-          <span class="muted">Dealer</span><b>${pn(dealer)} <span class="muted" style="font-weight:400">(calls last)</span></b>
-          <span class="muted">Calling order</span><span>${order.map(p => `<span class="emo">${esc(emojiOf(p))}</span> ${esc(p.name)}`).join(' → ')}</span>
+          <span class="k">First turn<span class="hi">પહેલી ચાલ</span></span><span><span class="chip first">${esc(first.name)}</span></span>
+          <span class="k">Dealer<span class="hi">પત્તાં વહેંચનાર</span></span><span>${pn(dealer)} <span class="muted">(calls last)</span></span>
+          <span class="k">Order</span><span class="order">${order.map(pn).join('<span class="arrow">→</span>')}</span>
         </div>
         ${cur && cur.round_no !== r.round_no ? `<button class="btn" id="gocur" style="align-self:flex-start">Jump to current round (${cur.round_no})</button>` : ''}
       </div>
 
       <div class="panel entry-panel">
-        <h2>Hands asked &amp; won</h2>
-        <table class="entry">
-          <thead><tr><th>#</th><th>Player</th><th>Asked</th><th>Won</th><th class="r">Round</th><th class="r">Total</th></tr></thead>
+        <h2>Hands asked &amp; won <span class="hi">· બોલ્યા અને બન્યા</span></h2>
+        <div class="sheet-wrap"><table class="entry">
+          <thead><tr><th>#</th><th>Player</th><th>Asked<span class="hi">બોલ્યા</span></th><th>Won<span class="hi">બન્યા</span></th><th class="r">Round</th><th class="r">Total</th></tr></thead>
           <tbody>${order.map((p, i) => {
             const e = r.entries[p.id] || {};
-            return `<tr data-pid="${p.id}">
+            return `<tr data-pid="${p.id}" class="${p.seat === r.dealer_seat ? 'dealer-row' : ''}">
               <td class="muted">${i + 1}</td>
               <td><b>${pn(p)}</b> ${p.seat === r.dealer_seat ? '<span class="chip">Dealer</span>' : ''}${i === 0 ? ' <span class="chip first">1st</span>' : ''}</td>
               <td>${stepper('bid', p.id, e.bid)}<span class="forbid" data-forbid="${p.id}"></span></td>
@@ -398,33 +512,36 @@ function renderGame() {
               <td class="r num" data-tt="${p.id}"></td>
             </tr>`;
           }).join('')}</tbody>
-        </table>
+        </table></div>
         <div class="status" id="status"></div>
         <div class="err" id="rerr"></div>
         <div class="row">
           <button class="btn" id="saveBids">Save hands asked</button>
-          <button class="btn primary" id="saveRound">Save round</button>
+          <button class="btn primary" id="saveRound">Save round ✓</button>
           ${Object.keys(r.entries).length ? '<button class="btn ghost" id="clearRound">Clear round</button>' : ''}
         </div>
       </div>
 
       <div class="panel lb">
-        <h2>${cur ? 'Leaderboard' : 'Final standings'}</h2>
-        ${!cur ? `<div class="over"><div class="crown">🏆</div><b>${pn(ranked[0])}</b> wins with ${final[ranked[0].id]}</div>` : ''}
+        <h2>${cur ? 'Leaderboard' : 'Final standings'} <span class="hi">· ${cur ? 'કોણ આગળ?' : 'પરિણામ'}</span></h2>
+        ${!cur ? `<div class="winner"><div class="trophy emo">🏆</div><div class="display">${esc(ranked[0].name)} jitya!</div><div class="muted">${final[ranked[0].id]} points</div></div>` : ''}
         <ol>${ranked.map((p, i) => {
           const d = lastDone ? lastDone.entries[p.id].score : null;
-          return `<li><span class="rank">${i + 1}</span><button type="button" class="emo-btn emo" data-pemo="${p.id}" title="Change ${esc(p.name)}'s emoji" style="border-color:${colorOf(p)}">${esc(emojiOf(p))}</button>
-            <span class="name">${esc(p.name)}</span>
+          const rk = doneCount && i < 3 ? RANKS[i] : null;
+          return `<li>
+            <span class="rankcard ${rk ? (i === 0 ? 'k' : '') : 'plain'}" title="${rk ? rk.t : ''}">${rk ? rk.c : i + 1}</span>
+            <span class="cdot" style="background:${colorOf(p)}" title="Line colour on the chart"></span>
+            <span class="who"><b>${esc(p.name)}</b>${rk ? `<span class="title">${rk.t}${i === 0 ? ' 👑' : ''}</span>` : ''}</span>
             <span class="delta ${d > 0 ? 'pos' : ''}">${d == null ? '' : (d > 0 ? '+' : '') + d}</span>
             <span class="total num">${final[p.id]}</span></li>`;
         }).join('')}</ol>
-        <p class="hint" style="margin:10px 0 0">${lastDone ? `Change shown is from round ${lastDone.round_no}. ` : ''}Click an emoji to change it.</p>
+        <p class="hint" style="margin:10px 0 0">${lastDone ? `Change shown is from round ${lastDone.round_no}.` : 'Scores appear after the first round.'}</p>
       </div>
     </div>
 
     <div class="bottom">
       <div class="panel">
-        <h2>Score sheet</h2>
+        <h2>Score sheet <span class="hi">· હિસાબ</span></h2>
         <div class="sheet-wrap">
           <table class="sheet">
             <thead><tr><th style="text-align:left">Round</th><th>Cards</th><th>Trump</th><th>First</th>
@@ -433,7 +550,7 @@ function renderGame() {
               const done = isDone(x);
               const started = Object.values(x.entries).some(e => e.bid != null);
               return `<tr data-round="${x.round_no}" class="${x.round_no === selNo ? 'sel' : ''} ${!done && !started ? 'future' : ''}">
-                <td class="lbl">R${x.round_no}</td><td>${x.cards}</td><td>${suitHtml(x.trump)}</td><td class="muted">${pn(pBySeat(x.first_seat))}</td>
+                <td class="lbl">R${x.round_no}</td><td>${x.cards}</td><td title="${SUITS[x.trump].hi}">${suitHtml(x.trump)}</td><td class="muted">${pn(pBySeat(x.first_seat))}</td>
                 ${G.players.map(p => {
                   const e = x.entries[p.id];
                   if (!e || e.bid == null) return '<td></td>';
@@ -449,8 +566,11 @@ function renderGame() {
         </div>
       </div>
       <div class="panel">
-        <h2>Score trend</h2>
-        <div class="chart-box"><canvas id="trend"></canvas></div>
+        <h2>Score trend <span class="hi">· ચડ-ઉતર</span></h2>
+        <div class="chart-box"><canvas id="trend" aria-label="Running total per player by round"></canvas></div>
+        <div class="chart-emojis"><span class="muted">Chart emojis:</span>
+          ${G.players.map(p => `<button type="button" class="btn emo-pill" data-pemo="${p.id}" title="Change ${esc(p.name)}'s chart emoji" style="border-color:${colorOf(p)}"><span class="emo">${esc(emojiOf(p))}</span> ${esc(p.name)}</button>`).join('')}
+        </div>
         ${doneCount ? '' : '<p class="hint">The chart fills in as rounds are saved.</p>'}
       </div>
     </div>`;
@@ -477,7 +597,7 @@ function renderGame() {
     const dealerP = order[dealerIdx];
     let bidsOk = true;
     if (othersIn && forbidden >= 0 && forbidden <= r.cards) {
-      panel.querySelector(`[data-forbid="${dealerP.id}"]`).textContent = `can't call ${forbidden}`;
+      panel.querySelector(`[data-forbid="${dealerP.id}"]`).textContent = `can't say ${forbidden}`;
       if (bids[dealerIdx] === forbidden) { bidsOk = false; panel.querySelector(`.stepper[data-kind="bid"][data-pid="${dealerP.id}"]`).classList.add('bad'); }
     }
     const allBids = bids.every(b => b != null);
@@ -495,9 +615,9 @@ function renderGame() {
     });
 
     const st = [];
-    st.push(`Asked: <span class="${allBids ? (bidSum > r.cards ? '' : '') : ''}">${bidSum}</span> of ${r.cards}` +
+    st.push(`Asked: <b>${bidSum}</b> of ${r.cards}` +
       (allBids ? (bidSum > r.cards ? ` <span class="muted">(${bidSum - r.cards} over)</span>` : ` <span class="muted">(${r.cards - bidSum} under)</span>`) : ''));
-    if (!bidsOk) st.push(`<span class="bad">${esc(dealerP.name)} can't call ${forbidden}</span>`);
+    if (!bidsOk) st.push(`<span class="bad">${esc(dealerP.name)} can't say ${forbidden}</span>`);
     if (anyTr) st.push(allTr && trSum === r.cards ? `<span class="ok">Won: ${trSum} of ${r.cards} ✓</span>` : `<span class="bad">Won: ${trSum} of ${r.cards}</span>`);
     document.getElementById('status').innerHTML = st.join('');
     document.getElementById('saveBids').disabled = !(allBids && bidsOk);
@@ -527,10 +647,16 @@ function renderGame() {
     try {
       G = await api('PUT', `/api/games/${G.game.id}/rounds/${r.round_no}`, { entries });
       if (withTricks) {
-        toast(`Round ${r.round_no} saved`);
         const next = currentRound();
-        if (next && next.round_no > r.round_no) selNo = next.round_no;
-      } else toast('Hands asked saved');
+        if (!next) {
+          const { final: f } = totals();
+          const w = [...G.players].sort((a, b) => f[b.id] - f[a.id])[0];
+          toast(`Ramat puri! 🏆 ${w.name} jitya`, 5000); petals();
+        } else {
+          toast(roundCheer(G.rounds.find(x => x.round_no === r.round_no)));
+          if (next.round_no > r.round_no) selNo = next.round_no;
+        }
+      } else toast('Badhae boli didhu. Have ramo! 🃏');
       renderGame();
     } catch (e) { document.getElementById('rerr').textContent = e.message; }
   };
@@ -544,7 +670,7 @@ function renderGame() {
   };
   refresh();
   const firstEmpty = inputs.find(i => i.value === '');
-  if (firstEmpty && !isDone(r)) firstEmpty.focus();
+  if (firstEmpty && !isDone(r)) firstEmpty.focus({ preventScroll: true });
 
   app.querySelectorAll('[data-pemo]').forEach(b => b.onclick = () => {
     const p = pById(b.dataset.pemo);
@@ -557,11 +683,22 @@ function renderGame() {
   drawChart(after);
 }
 
+// A little Gujarati-English cheer after each round
+function roundCheer(r) {
+  const hits = G.players.filter(p => r.entries[p.id].bid === r.entries[p.id].tricks);
+  if (!hits.length) return `Round ${r.round_no}: koinu nathi banyu! 😅`;
+  const star = hits.sort((a, b) => r.entries[b.id].bid - r.entries[a.id].bid)[0];
+  const b = r.entries[star.id].bid;
+  if (b >= 3) return `Shabash ${star.name}! ${b} bolya, ${b} banya 🎉`;
+  if (hits.length === G.players.length) return `Round ${r.round_no}: badhanu banyu! 👏`;
+  return `Round ${r.round_no} done ✓ (${hits.length} nu banyu)`;
+}
+
 function stepper(kind, pid, v) {
   return `<span class="stepper" data-kind="${kind}" data-pid="${pid}">
-    <button type="button" data-step="-1" tabindex="-1">−</button>
-    <input type="number" inputmode="numeric" min="0" data-kind="${kind}" data-pid="${pid}" value="${v ?? ''}">
-    <button type="button" data-step="1" tabindex="-1">+</button></span>`;
+    <button type="button" data-step="-1" tabindex="-1" aria-label="minus">−</button>
+    <input type="number" inputmode="numeric" min="0" data-kind="${kind}" data-pid="${pid}" value="${v ?? ''}" aria-label="${kind === 'bid' ? 'hands asked' : 'hands won'}">
+    <button type="button" data-step="1" tabindex="-1" aria-label="plus">+</button></span>`;
 }
 
 // Draws each player's emoji in a ring at the end of their line, nudged apart so ties don't overlap,
@@ -570,7 +707,7 @@ const emojiHeads = {
   id: 'emojiHeads',
   afterDatasetsDraw(c) {
     const { ctx, chartArea } = c;
-    const panel = getComputedStyle(document.documentElement).getPropertyValue('--panel').trim();
+    const paper = getComputedStyle(document.documentElement).getPropertyValue('--paper').trim();
     const R = 15, GAP = 2 * R + 3;
     const heads = [];
     c.data.datasets.forEach((ds, i) => {
@@ -580,7 +717,6 @@ const emojiHeads = {
       const pt = meta.data[k];
       heads.push({ x: pt.x, y: pt.y, y0: pt.y, ds, value: ds.data[k] });
     });
-    // spread heads that share an x position so they don't stack on top of each other
     const groups = {};
     heads.forEach(h => (groups[Math.round(h.x)] ||= []).push(h));
     Object.values(groups).forEach(g => {
@@ -593,12 +729,12 @@ const emojiHeads = {
     const leaders = heads.filter(h => h.value === best);
     ctx.save();
     heads.forEach(h => {
-      if (Math.abs(h.y - h.y0) > 1) {   // tie line back to the real point
+      if (Math.abs(h.y - h.y0) > 1) {
         ctx.strokeStyle = h.ds.borderColor; ctx.lineWidth = 1.5; ctx.setLineDash([3, 3]);
         ctx.beginPath(); ctx.moveTo(h.x, h.y0); ctx.lineTo(h.x, h.y); ctx.stroke(); ctx.setLineDash([]);
       }
       ctx.beginPath(); ctx.arc(h.x, h.y, R, 0, Math.PI * 2);
-      ctx.fillStyle = panel; ctx.fill();
+      ctx.fillStyle = paper; ctx.fill();
       ctx.lineWidth = 3; ctx.strokeStyle = h.ds.borderColor; ctx.stroke();
       ctx.font = '18px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -617,6 +753,7 @@ function drawChart(after) {
   if (typeof Chart === 'undefined') return;
   const css = getComputedStyle(document.documentElement);
   const ink = css.getPropertyValue('--muted').trim(), grid = css.getPropertyValue('--line').trim();
+  Chart.defaults.font.family = 'Mukta, -apple-system, sans-serif';
   const labels = ['Start', ...G.rounds.map(r => `R${r.round_no} ${SUITS[r.trump].s}${r.cards}`)];
   const datasets = G.players.map(p => ({
     label: `${emojiOf(p)} ${p.name}`, emoji: emojiOf(p),
@@ -629,7 +766,7 @@ function drawChart(after) {
     options: {
       maintainAspectRatio: false, animation: { duration: 400 }, interaction: { mode: 'index', intersect: false },
       layout: { padding: { top: 30, right: 22, left: 6 } },
-      plugins: { legend: { labels: { color: ink, usePointStyle: true, pointStyle: 'circle', boxWidth: 8, boxHeight: 8, padding: 16, font: { size: 13 } } },
+      plugins: { legend: { labels: { color: ink, usePointStyle: true, pointStyle: 'circle', boxWidth: 8, boxHeight: 8, padding: 16, font: { size: 14 } } },
         tooltip: { itemSort: (a, b) => b.parsed.y - a.parsed.y } },
       scales: { x: { ticks: { color: ink }, grid: { color: grid } }, y: { ticks: { color: ink }, grid: { color: grid }, beginAtZero: true, grace: '15%' } },
     },

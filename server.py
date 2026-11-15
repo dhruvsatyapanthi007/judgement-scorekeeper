@@ -244,6 +244,15 @@ class Handler(BaseHTTPRequestHandler):
 
     def dispatch(self, method):
         path = self.path.split("?")[0]
+        m = re.fullmatch(r"/fonts/([A-Za-z0-9_-]+\.(woff2|css))", path)
+        if method == "GET" and m and (ROOT / "fonts" / m[1]).is_file():
+            body = (ROOT / "fonts" / m[1]).read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", "font/woff2" if m[2] == "woff2" else "text/css")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if method == "GET" and path in STATIC:
             fname, ctype = STATIC[path]
             body = (ROOT / fname).read_bytes()
