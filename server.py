@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Judgement scorekeeper: a tiny local server backed by SQLite.
+"""Judgement & Kaadi Tiri scorekeeper: a tiny local server backed by SQLite.
 
 Run:  python3 server.py            -> http://127.0.0.1:8765
       python3 server.py --host 0.0.0.0   (open it from a tablet/phone on the same Wi-Fi)
@@ -37,7 +37,8 @@ CREATE TABLE IF NOT EXISTS games (
   created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
   max_cards INTEGER NOT NULL,
   repeat_peak INTEGER NOT NULL DEFAULT 1,
-  miss_rule TEXT NOT NULL DEFAULT 'zero'
+  miss_rule TEXT NOT NULL DEFAULT 'zero',
+  kind TEXT NOT NULL DEFAULT 'judgement'      -- 'judgement' or 'kaadi_tiri'
 );
 CREATE TABLE IF NOT EXISTS players (
   id INTEGER PRIMARY KEY,
@@ -64,6 +65,21 @@ CREATE TABLE IF NOT EXISTS entries (
   score INTEGER,
   PRIMARY KEY (round_id, player_id)
 );
+-- Kaadi Tiri: one row per hand played
+CREATE TABLE IF NOT EXISTS kt_rounds (
+  id INTEGER PRIMARY KEY,
+  game_id INTEGER NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+  bidder_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  bid INTEGER NOT NULL,
+  won INTEGER NOT NULL,
+  trump TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+);
+CREATE TABLE IF NOT EXISTS kt_partners (
+  round_id INTEGER NOT NULL REFERENCES kt_rounds(id) ON DELETE CASCADE,
+  player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  PRIMARY KEY (round_id, player_id)
+);
 """
 
 
@@ -88,6 +104,64 @@ def score_for(bid, tricks, miss_rule):
     if bid == tricks:
         return hit
     return -hit if miss_rule == "negative" else 0
+
+
+def kt_scores(player_ids, bidder_id, partner_ids, bid, won):
+    """Kaadi Tiri: bidder wins -> bidder +2x, each partner +x. Bidder loses -> bidder -x. Everyone else 0."""
+    scores = {pid: 0 for pid in player_ids}
+    if won:
+        scores[bidder_id] = 2 * bid
+        for pid in partner_ids:
+            scores[pid] = bid
+    else:
+        scores[bidder_id] = -bid
+    return scores
+
+
+def kt_rounds(conn, gid, player_ids):
+    out = []
+    for i, r in enumerate(conn.execute("SELECT * FROM kt_rounds WHERE game_id=? ORDER BY id", (gid,)).fetchall()):
+        partners = [x[0] for x in conn.execute("SELECT player_id FROM kt_partners WHERE round_id=?", (r["id"],))]
+        sc = kt_scores(player_ids, r["bidder_id"], partners, r["bid"], r["won"])
+        out.append({"id": r["id"], "round_no": i + 1, "bidder_id": r["bidder_id"], "bid": r["bid"],
+                    "won": bool(r["won"]), "trump": r["trump"], "partners": partners,
+                    "scores": {str(k): v for k, v in sc.items()}})
+    return out
+
+
+def save_kt_round(conn, gid, body, rid=None):
+    g = conn.execute("SELECT * FROM games WHERE id=? AND kind='kaadi_tiri'", (gid,)).fetchone()
+    if not g:
+        raise ApiError("Game not found", 404)
+    players = {r[0] for r in conn.execute("SELECT id FROM players WHERE game_id=?", (gid,))}
+    bidder = int(body["bidder_id"])
+    bid = int(body["bid"])
+    partners = sorted({int(x) for x in body.get("partner_ids", [])})
+    won = body.get("won")
+    trump = body.get("trump") or None
+    if bidder not in players:
+        raise ApiError("Pick who made the bid")
+    if not 1 <= bid <= 10000:
+        raise ApiError("Enter the points asked")
+    if any(p not in players for p in partners) or bidder in partners:
+        raise ApiError("Partners must be other players in this game")
+    if won not in (True, False):
+        raise ApiError("Say whether the bidder won")
+    if trump is not None and trump not in TRUMPS:
+        raise ApiError("Unknown trump suit")
+    if rid is None:
+        rid = conn.execute("INSERT INTO kt_rounds(game_id, bidder_id, bid, won, trump) VALUES (?,?,?,?,?)",
+                           (gid, bidder, bid, int(won), trump)).lastrowid
+    else:
+        cur = conn.execute("UPDATE kt_rounds SET bidder_id=?, bid=?, won=?, trump=? WHERE id=? AND game_id=?",
+                           (bidder, bid, int(won), trump, rid, gid))
+        if not cur.rowcount:
+            raise ApiError("Round not found", 404)
+        conn.execute("DELETE FROM kt_partners WHERE round_id=?", (rid,))
+    for pid in partners:
+        conn.execute("INSERT INTO kt_partners(round_id, player_id) VALUES (?,?)", (rid, pid))
+    conn.commit()
+    return load_game(conn, gid)
 
 
 def clean_emoji(v):
@@ -118,6 +192,9 @@ def load_game(conn, gid):
         raise ApiError("Game not found", 404)
     players = [dict(r) for r in conn.execute(
         "SELECT id, seat, name, emoji FROM players WHERE game_id=? ORDER BY seat", (gid,))]
+    if g["kind"] == "kaadi_tiri":
+        return {"game": dict(g), "players": players,
+                "rounds": kt_rounds(conn, gid, [p["id"] for p in players])}
     rounds = []
     for r in conn.execute("SELECT * FROM rounds WHERE game_id=? ORDER BY round_no", (gid,)):
         rd = dict(r)
@@ -131,7 +208,17 @@ def load_game(conn, gid):
 
 def list_games(conn):
     out = []
-    for g in conn.execute("SELECT * FROM games ORDER BY id DESC"):
+    for g in conn.execute("SELECT * FROM games ORDER BY id DESC").fetchall():
+        if g["kind"] == "kaadi_tiri":
+            plist = [dict(p) for p in conn.execute(
+                "SELECT id, name, emoji, seat FROM players WHERE game_id=? ORDER BY seat", (g["id"],))]
+            rounds = kt_rounds(conn, g["id"], [p["id"] for p in plist])
+            for p in plist:
+                p["total"] = sum(r["scores"][str(p["id"])] for r in rounds)
+            plist.sort(key=lambda p: (-p["total"], p["seat"]))
+            out.append({**dict(g), "players": [{"name": p["name"], "emoji": p["emoji"], "total": p["total"]} for p in plist],
+                        "rounds_total": None, "rounds_done": len(rounds)})
+            continue
         players = conn.execute(
             """SELECT p.name, p.emoji, COALESCE(SUM(e.score),0) AS total FROM players p
                LEFT JOIN entries e ON e.player_id = p.id
@@ -151,10 +238,19 @@ def create_game(conn, body):
     raw = [p for p in raw if str(p.get("name") or "").strip()]
     names = [str(p["name"]).strip() for p in raw]
     emojis = [clean_emoji(p.get("emoji")) or DEFAULT_EMOJIS[i % len(DEFAULT_EMOJIS)] for i, p in enumerate(raw)]
-    if not 2 <= len(names) <= 10:
-        raise ApiError("Add between 2 and 10 players")
+    kind = "kaadi_tiri" if body.get("kind") == "kaadi_tiri" else "judgement"
+    if not (3 if kind == "kaadi_tiri" else 2) <= len(names) <= 10:
+        raise ApiError(f"Add between {3 if kind == 'kaadi_tiri' else 2} and 10 players")
     if len(set(n.lower() for n in names)) != len(names):
         raise ApiError("Player names must be unique")
+    if kind == "kaadi_tiri":
+        name = str(body.get("name") or "").strip() or "Kaadi Tiri night"
+        gid = conn.execute("INSERT INTO games(name, max_cards, kind) VALUES (?,0,'kaadi_tiri')", (name,)).lastrowid
+        for seat, pname in enumerate(names):
+            conn.execute("INSERT INTO players(game_id, seat, name, emoji) VALUES (?,?,?,?)",
+                         (gid, seat, pname, emojis[seat]))
+        conn.commit()
+        return load_game(conn, gid)
     n = len(names)
     limit = 52 // n
     max_cards = int(body.get("max_cards") or limit)
@@ -278,13 +374,23 @@ class Handler(BaseHTTPRequestHandler):
                 m = re.fullmatch(r"/api/games/(\d+)/players/(\d+)", path)
                 if m and method == "PUT":
                     return self.send_json(set_emoji(conn, int(m[1]), int(m[2]), self.read_body()))
+                m = re.fullmatch(r"/api/games/(\d+)/kt-rounds", path)
+                if m and method == "POST":
+                    return self.send_json(save_kt_round(conn, int(m[1]), self.read_body()), 201)
+                m = re.fullmatch(r"/api/games/(\d+)/kt-rounds/(\d+)", path)
+                if m and method == "PUT":
+                    return self.send_json(save_kt_round(conn, int(m[1]), self.read_body(), int(m[2])))
+                if m and method == "DELETE":
+                    conn.execute("DELETE FROM kt_rounds WHERE id=? AND game_id=?", (int(m[2]), int(m[1])))
+                    conn.commit()
+                    return self.send_json(load_game(conn, int(m[1])))
                 m = re.fullmatch(r"/api/games/(\d+)/rounds/(\d+)", path)
                 if m and method == "PUT":
                     return self.send_json(save_round(conn, int(m[1]), int(m[2]), self.read_body()))
             self.send_json({"error": "Not found"}, 404)
         except ApiError as e:
             self.send_json({"error": str(e)}, e.status)
-        except (ValueError, KeyError, json.JSONDecodeError):
+        except (ValueError, KeyError, TypeError, json.JSONDecodeError):
             self.send_json({"error": "Invalid input"}, 400)
 
     def do_GET(self):
@@ -304,6 +410,9 @@ def init_db():
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     with db() as conn:
         conn.executescript(SCHEMA)
+        # Older databases: add the game type column
+        if "kind" not in [c[1] for c in conn.execute("PRAGMA table_info(games)")]:
+            conn.execute("ALTER TABLE games ADD COLUMN kind TEXT NOT NULL DEFAULT 'judgement'")
         # Older databases: add the emoji column and give existing players one
         if "emoji" not in [c[1] for c in conn.execute("PRAGMA table_info(players)")]:
             conn.execute("ALTER TABLE players ADD COLUMN emoji TEXT")

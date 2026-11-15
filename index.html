@@ -163,6 +163,38 @@
   .chart-emojis { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; font-size: 14px; }
   .emo-pill { border-width: 2px; padding: 3px 12px 3px 8px; font-size: 14px; }
   .emo-pill .emo { font-size: 17px; }
+  /* Game type picker */
+  .kinds { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .kind { text-align: left; border: 2px solid var(--line); background: var(--paper); border-radius: 14px; padding: 10px 14px; cursor: pointer; line-height: 1.25; }
+  .kind b { font-family: "Rozha One", Georgia, serif; font-weight: 400; font-size: 21px; color: var(--maroon); display: block; }
+  .kind small { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .kind[aria-pressed="true"] { border-color: var(--saffron); background: var(--soft); box-shadow: 0 0 0 3px color-mix(in srgb, var(--marigold) 30%, transparent); }
+  /* Kaadi Tiri entry */
+  .top.kt { grid-template-columns: 1.7fr 1fr; }
+  .step { margin-bottom: 16px; }
+  .step > .lbl { font-size: 14px; font-weight: 700; color: var(--muted); margin-bottom: 6px; display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pchip { border: 1.5px solid var(--line); background: var(--paper); border-radius: 999px; padding: 6px 14px; cursor: pointer; font-weight: 500; }
+  .pchip:hover:not(:disabled) { border-color: var(--gold); }
+  .pchip[aria-pressed="true"] { background: linear-gradient(135deg, var(--saffron), var(--marigold)); border-color: transparent; color: #3a1604; font-weight: 700; }
+  .pchip.partner[aria-pressed="true"] { background: var(--hit-bg); color: var(--hit); border-color: var(--hit); }
+  .pchip:disabled { opacity: .35; cursor: not-allowed; }
+  .pchip .s { font-size: 17px; }
+  .bidrow { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .bidrow .stepper input { width: 64px; }
+  .ask { border-top: 1px dashed var(--line); padding-top: 14px; }
+  .ask .q { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
+  .outcomes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .outcome { border-radius: 14px; padding: 12px 14px; cursor: pointer; text-align: left; border: 2px solid transparent; font-weight: 700; font-size: 18px; line-height: 1.2; }
+  .outcome small { display: block; font-weight: 500; font-size: 13px; margin-top: 4px; opacity: .9; }
+  .outcome.win { background: var(--hit-bg); color: var(--hit); border-color: color-mix(in srgb, var(--hit) 40%, transparent); }
+  .outcome.lose { background: var(--warn-bg); color: var(--kumkum); border-color: color-mix(in srgb, var(--kumkum) 35%, transparent); }
+  .outcome:hover:not(:disabled) { filter: brightness(.97); transform: translateY(-1px); }
+  .outcome:disabled { opacity: .4; cursor: not-allowed; }
+  .res { font-weight: 700; font-size: 13px; padding: 1px 9px; border-radius: 99px; }
+  .res.w { background: var(--hit-bg); color: var(--hit); }
+  .res.l { background: var(--warn-bg); color: var(--kumkum); }
+  .sc-neg { color: var(--kumkum) !important; }
   .winner { text-align: center; padding: 6px 0 14px; }
   .winner .trophy { font-size: 46px; line-height: 1; }
   .winner .display { font-size: 26px; color: var(--maroon); }
@@ -206,9 +238,10 @@
   @keyframes fall { to { transform: translateY(105vh) rotate(540deg); opacity: .85; } }
   @media (prefers-reduced-motion: reduce) { .petal { display: none; } }
 
-  @media (max-width: 1100px) { .top { grid-template-columns: 1fr 1fr; } .top .entry-panel { grid-column: 1 / -1; order: 3; } }
+  @media (max-width: 1100px) { .top.kt { grid-template-columns: 1fr 1fr; } .top { grid-template-columns: 1fr 1fr; } .top .entry-panel { grid-column: 1 / -1; order: 3; } }
   @media (max-width: 720px) {
-    .home, .top { grid-template-columns: 1fr; }
+    .home, .top, .top.kt { grid-template-columns: 1fr; }
+    .outcomes { grid-template-columns: 1fr; }
     .top .entry-panel { order: 2; } .top .lb { order: 3; }
     header h1 { font-size: 28px; }
     .pcard { width: 76px; height: 106px; font-size: 44px; }
@@ -303,8 +336,16 @@ function route() {
 }
 window.addEventListener('hashchange', () => { closePicker(); route(); });
 
-const brand = sub => `
-  <div class="brand"><h1 class="display">♠ Judgement</h1><span class="sub"><span class="hi">જજમેન્ટ</span> · Kachuful${sub ? ' · ' + sub : ''}</span></div>`;
+const KINDS = {
+  judgement:  { title: 'Judgement',  gu: 'જજમેન્ટ', also: 'Kachuful' },
+  kaadi_tiri: { title: 'Kaadi Tiri', gu: 'કાળી તીરી', also: 'Black three' },
+};
+const brand = (sub, kind) => {
+  if (!kind) return `<div class="brand"><h1 class="display">♠ Pattā</h1><span class="sub">Judgement · Kaadi Tiri${sub ? ' · ' + sub : ''}</span></div>`;
+  const k = KINDS[kind];
+  return `<div class="brand"><h1 class="display">♠ ${k.title}</h1><span class="sub"><span class="hi">${k.gu}</span> · ${k.also}${sub ? ' · ' + sub : ''}</span></div>`;
+};
+let gameKind = 'judgement';
 
 /* ---------------- Home ---------------- */
 const freshDraft = () => DEFAULT_EMOJIS.slice(0, 4).map(emoji => ({ name: '', emoji }));
@@ -320,6 +361,11 @@ async function showHome() {
     <div class="home">
       <div class="panel">
         <h2>New game <span class="hi">· નવી રમત</span></h2>
+        <div class="kinds">
+          ${Object.entries(KINDS).map(([k, v]) => `<button type="button" class="kind" data-kind="${k}" aria-pressed="${k === gameKind}">
+            <b>${v.title} <span class="hi" style="font-size:15px">${v.gu}</span></b>
+            <small>${k === 'judgement' ? 'Call your hands every round' : 'Bid points, pick partners'}</small></button>`).join('')}
+        </div>
         <div class="field"><label for="gname">Game name</label><input type="text" id="gname" placeholder="Diwali night"></div>
         <div class="field">
           <label>Players, in seating order (clockwise)</label>
@@ -327,6 +373,7 @@ async function showHome() {
           <div class="plist" id="plist"></div>
           <div class="row"><button class="btn" id="addp">+ Add player</button></div>
         </div>
+        <div id="jopts" ${gameKind === 'judgement' ? '' : 'hidden'}>
         <div class="row" style="gap:16px; align-items:flex-start">
           <div class="field"><label for="dealer">First dealer</label><select id="dealer"></select></div>
           <div class="field"><label for="maxc">Max cards (n)</label><input type="number" id="maxc" min="1" style="width:90px"></div>
@@ -336,6 +383,11 @@ async function showHome() {
         <div class="field"><label style="font-weight:500"><input type="checkbox" id="peak" checked> Play the peak round twice (… n, n …)</label></div>
         <div class="rules"><span id="preview"></span><br>
           <b>Banyu?</b> <span class="hi">બન્યું?</span> You score your call with a 5 after it: 0 → 5, 3 → 35, 10 → 105.</div>
+        </div>
+        <div id="kopts" class="rules" ${gameKind === 'kaadi_tiri' ? '' : 'hidden'}>
+          Each hand: pick who bid, their points (<b>x</b>) and their partners, then say if they won.<br>
+          <b>Jitya</b> <span class="hi">જીત્યા</span>: bidder <b>+2x</b>, each partner <b>+x</b>. &nbsp;
+          <b>Harya</b> <span class="hi">હાર્યા</span>: bidder <b>−x</b>. Everyone else gets 0.</div>
         <div class="err" id="err"></div>
         <button class="btn primary" id="create">Chalo ramiye · Start game</button>
       </div>
@@ -347,7 +399,7 @@ async function showHome() {
           return `<div class="game-item">
             <div style="flex:1; min-width:0">
               <a class="title" href="#/game/${g.id}">${esc(g.name)}</a>
-              <div class="meta">${esc(g.created_at)} · ${done ? 'Finished' : `Round ${g.rounds_done + 1} of ${g.rounds_total}`}</div>
+              <div class="meta"><b>${KINDS[g.kind || 'judgement'].title}</b> · ${esc(g.created_at)} · ${g.kind === 'kaadi_tiri' ? `${g.rounds_done} hand${g.rounds_done === 1 ? '' : 's'} played` : done ? 'Finished' : `Round ${g.rounds_done + 1} of ${g.rounds_total}`}</div>
               <div class="meta">${g.players.map(p => esc(p.name)).join(' · ')}</div>
               <div class="meta">${leader && g.rounds_done ? `${done ? '🏆 Winner' : 'Aagal'}: <b>${esc(leader.name)}</b> (${leader.total})` : 'Not started yet'}</div>
             </div>
@@ -391,16 +443,23 @@ async function showHome() {
   document.getElementById('addp').onclick = () => { if (draftPlayers.length < 10) { draftPlayers.push({ name: '', emoji: nextFreeEmoji() }); renderPlayers(); plist.querySelector(`[data-i="${draftPlayers.length - 1}"]`).focus(); } };
   document.getElementById('maxc').oninput = e => { e.target.dataset.auto = '0'; updateMeta(); };
   document.getElementById('peak').onchange = updateMeta;
+  app.querySelectorAll('[data-kind]').forEach(b => b.onclick = () => {
+    gameKind = b.dataset.kind;
+    app.querySelectorAll('[data-kind]').forEach(x => x.setAttribute('aria-pressed', x === b));
+    document.getElementById('jopts').hidden = gameKind !== 'judgement';
+    document.getElementById('kopts').hidden = gameKind !== 'kaadi_tiri';
+  });
   renderPlayers();
 
   document.getElementById('create').onclick = async () => {
     const err = document.getElementById('err'); err.textContent = '';
     const kept = draftPlayers.map((p, i) => ({ name: p.name.trim(), emoji: p.emoji, i })).filter(p => p.name);
-    if (kept.length < 2) { err.textContent = 'Enter at least two player names.'; return; }
+    const minP = gameKind === 'kaadi_tiri' ? 3 : 2;
+    if (kept.length < minP) { err.textContent = `Enter at least ${minP === 3 ? 'three' : 'two'} player names.`; return; }
     const dealerIdx = Math.max(0, kept.findIndex(p => p.i === +document.getElementById('dealer').value));
     try {
       const g = await api('POST', '/api/games', {
-        name: document.getElementById('gname').value, players: kept.map(({ name, emoji }) => ({ name, emoji })),
+        kind: gameKind, name: document.getElementById('gname').value, players: kept.map(({ name, emoji }) => ({ name, emoji })),
         first_dealer: dealerIdx, max_cards: +document.getElementById('maxc').value,
         repeat_peak: document.getElementById('peak').checked, miss_rule: document.getElementById('miss').value,
       });
@@ -419,6 +478,7 @@ async function showHome() {
 async function openGame(id) {
   try { G = await api('GET', `/api/games/${id}`); }
   catch (e) { toast(e.message); location.hash = ''; return; }
+  if (G.game.kind === 'kaadi_tiri') { ktReset(); renderKT(); return; }
   selNo = currentRound()?.round_no ?? G.rounds[G.rounds.length - 1].round_no;
   renderGame();
 }
@@ -465,7 +525,7 @@ function renderGame() {
   app.innerHTML = `
     <header>
       <a class="btn" href="#">← Games</a>
-      ${brand(esc(G.game.name))}
+      ${brand(esc(G.game.name), 'judgement')}
       <span class="spacer"></span>
       <span class="sub">${doneCount} of ${G.rounds.length} rounds played · miss = ${G.game.miss_rule === 'negative' ? 'minus' : '0'}</span>
     </header>
@@ -568,9 +628,7 @@ function renderGame() {
       <div class="panel">
         <h2>Score trend <span class="hi">· ચડ-ઉતર</span></h2>
         <div class="chart-box"><canvas id="trend" aria-label="Running total per player by round"></canvas></div>
-        <div class="chart-emojis"><span class="muted">Chart emojis:</span>
-          ${G.players.map(p => `<button type="button" class="btn emo-pill" data-pemo="${p.id}" title="Change ${esc(p.name)}'s chart emoji" style="border-color:${colorOf(p)}"><span class="emo">${esc(emojiOf(p))}</span> ${esc(p.name)}</button>`).join('')}
-        </div>
+        ${chartEmojiPills()}
         ${doneCount ? '' : '<p class="hint">The chart fills in as rounds are saved.</p>'}
       </div>
     </div>`;
@@ -672,13 +730,7 @@ function renderGame() {
   const firstEmpty = inputs.find(i => i.value === '');
   if (firstEmpty && !isDone(r)) firstEmpty.focus({ preventScroll: true });
 
-  app.querySelectorAll('[data-pemo]').forEach(b => b.onclick = () => {
-    const p = pById(b.dataset.pemo);
-    openPicker(b, emojiOf(p), G.players.map(emojiOf), async em => {
-      try { G = await api('PUT', `/api/games/${G.game.id}/players/${p.id}`, { emoji: em }); renderGame(); }
-      catch (e) { toast(e.message); }
-    });
-  });
+  wireEmojiPills(renderGame);
 
   drawChart(after);
 }
@@ -750,14 +802,18 @@ const emojiHeads = {
 };
 
 function drawChart(after) {
+  drawTrend(['Start', ...G.rounds.map(r => `R${r.round_no} ${SUITS[r.trump].s}${r.cards}`)],
+    p => [0, ...G.rounds.map(r => after[r.round_no] ? after[r.round_no][p.id] : null)]);
+}
+
+// labels: x-axis labels; seriesOf(player) -> running totals aligned with labels
+function drawTrend(labels, seriesOf) {
   if (typeof Chart === 'undefined') return;
   const css = getComputedStyle(document.documentElement);
   const ink = css.getPropertyValue('--muted').trim(), grid = css.getPropertyValue('--line').trim();
   Chart.defaults.font.family = 'Mukta, -apple-system, sans-serif';
-  const labels = ['Start', ...G.rounds.map(r => `R${r.round_no} ${SUITS[r.trump].s}${r.cards}`)];
   const datasets = G.players.map(p => ({
-    label: `${emojiOf(p)} ${p.name}`, emoji: emojiOf(p),
-    data: [0, ...G.rounds.map(r => after[r.round_no] ? after[r.round_no][p.id] : null)],
+    label: `${emojiOf(p)} ${p.name}`, emoji: emojiOf(p), data: seriesOf(p),
     borderColor: colorOf(p), backgroundColor: colorOf(p),
     borderWidth: 3, pointRadius: 3, pointHoverRadius: 6, cubicInterpolationMode: 'monotone', spanGaps: false,
   }));
@@ -771,6 +827,167 @@ function drawChart(after) {
       scales: { x: { ticks: { color: ink }, grid: { color: grid } }, y: { ticks: { color: ink }, grid: { color: grid }, beginAtZero: true, grace: '15%' } },
     },
   });
+}
+
+const chartEmojiPills = () => `<div class="chart-emojis"><span class="muted">Chart emojis:</span>
+  ${G.players.map(p => `<button type="button" class="btn emo-pill" data-pemo="${p.id}" title="Change ${esc(p.name)}'s chart emoji" style="border-color:${colorOf(p)}"><span class="emo">${esc(emojiOf(p))}</span> ${esc(p.name)}</button>`).join('')}
+</div>`;
+function wireEmojiPills(rerender) {
+  app.querySelectorAll('[data-pemo]').forEach(b => b.onclick = () => {
+    const p = pById(b.dataset.pemo);
+    openPicker(b, emojiOf(p), G.players.map(emojiOf), async em => {
+      try { G = await api('PUT', `/api/games/${G.game.id}/players/${p.id}`, { emoji: em }); rerender(); }
+      catch (e) { toast(e.message); }
+    });
+  });
+}
+
+/* ---------------- Kaadi Tiri ---------------- */
+let KT = null;   // the hand being entered: { editId, bidder, bid, partners:Set, trump }
+function ktReset() { KT = { editId: null, bidder: null, bid: 150, partners: new Set(), trump: null }; }
+function ktLoad(r) { KT = { editId: r.id, bidder: r.bidder_id, bid: r.bid, partners: new Set(r.partners), trump: r.trump }; }
+
+function renderKT() {
+  if (chart) { chart.destroy(); chart = null; }
+  const rounds = G.rounds;
+  const run = Object.fromEntries(G.players.map(p => [p.id, 0]));
+  const after = rounds.map(r => { G.players.forEach(p => run[p.id] += r.scores[p.id]); return { ...run }; });
+  const final = run;
+  const last = rounds[rounds.length - 1];
+  const ranked = [...G.players].sort((a, b) => final[b.id] - final[a.id] || a.seat - b.seat);
+  const editing = KT.editId != null;
+  const handNo = editing ? rounds.find(r => r.id === KT.editId).round_no : rounds.length + 1;
+  const bidder = KT.bidder != null ? pById(KT.bidder) : null;
+  const x = KT.bid;
+  const ok = bidder && x >= 1;
+  const partnerNames = [...KT.partners].map(id => pById(id).name);
+
+  app.innerHTML = `
+    <header>
+      <a class="btn" href="#">← Games</a>
+      ${brand(esc(G.game.name), 'kaadi_tiri')}
+      <span class="spacer"></span>
+      <span class="sub">${rounds.length} hand${rounds.length === 1 ? '' : 's'} played</span>
+    </header>
+
+    <div class="top kt">
+      <div class="panel entry-panel">
+        <h2>${editing ? `Edit hand ${handNo}` : `Hand ${handNo}`} <span class="hi">· ${editing ? 'બાજી સુધારો' : 'નવી બાજી'}</span></h2>
+
+        <div class="step">
+          <div class="lbl">1. Who bid? <span class="hi">કોણે બોલી લગાવી?</span></div>
+          <div class="chips">${G.players.map(p => `<button type="button" class="pchip" data-bidder="${p.id}" aria-pressed="${KT.bidder === p.id}">${esc(p.name)}</button>`).join('')}</div>
+        </div>
+
+        <div class="step">
+          <div class="lbl">2. Points asked (x) <span class="hi">બોલી</span></div>
+          <div class="bidrow">
+            <span class="stepper"><button type="button" data-bstep="-5" aria-label="minus 5">−</button><input type="number" inputmode="numeric" min="1" step="5" id="ktbid" value="${x || ''}" aria-label="Points asked"><button type="button" data-bstep="5" aria-label="plus 5">+</button></span>
+            <span class="chips">${[150, 175, 200, 225, 250].map(v => `<button type="button" class="pchip" data-quick="${v}" aria-pressed="${x === v}">${v}</button>`).join('')}</span>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="lbl">3. Partners <span class="hi">ભાગીદાર</span> <span class="muted" style="font-weight:400">· pick everyone on the bidder's side</span></div>
+          <div class="chips">${G.players.map(p => `<button type="button" class="pchip partner" data-partner="${p.id}" aria-pressed="${KT.partners.has(p.id)}" ${KT.bidder === p.id ? 'disabled' : ''}>${esc(p.name)}</button>`).join('')}</div>
+        </div>
+
+        <div class="step">
+          <div class="lbl">Trump <span class="hi">હુકમ</span> <span class="muted" style="font-weight:400">· optional</span></div>
+          <div class="chips">${Object.entries(SUITS).map(([k, v]) => `<button type="button" class="pchip" data-trump="${k}" aria-pressed="${KT.trump === k}"><span class="s ${v.red ? 'red' : ''}">${v.s}︎</span> ${v.hi}</button>`).join('')}</div>
+        </div>
+
+        <div class="ask">
+          <div class="q">${ok ? `Did ${esc(bidder.name)} make ${x}? <span class="hi">${esc(bidder.name)} જીત્યા?</span>` : '<span class="muted">Pick who bid and the points to continue</span>'}</div>
+          <div class="outcomes">
+            <button type="button" class="outcome win" data-won="1" ${ok ? '' : 'disabled'}>✓ Jitya · Won
+              <small>${ok ? `${esc(bidder.name)} +${2 * x}${partnerNames.length ? ' · ' + partnerNames.map(n => `${esc(n)} +${x}`).join(' · ') : ''}` : 'Bidder +2x, partners +x'}</small></button>
+            <button type="button" class="outcome lose" data-won="0" ${ok ? '' : 'disabled'}>✗ Harya · Lost
+              <small>${ok ? `${esc(bidder.name)} −${x}${partnerNames.length ? ' · partners 0' : ''}` : 'Bidder −x'}</small></button>
+          </div>
+          <div class="err" id="kterr"></div>
+          ${editing ? `<div class="row"><button class="btn" id="ktcancel">Cancel edit</button><button class="btn ghost danger" id="ktdel">Delete this hand</button></div>` : ''}
+        </div>
+      </div>
+
+      <div class="panel lb">
+        <h2>Leaderboard <span class="hi">· કોણ આગળ?</span></h2>
+        <ol>${ranked.map((p, i) => {
+          const d = last ? last.scores[p.id] : null;
+          const rk = rounds.length && i < 3 ? RANKS[i] : null;
+          return `<li>
+            <span class="rankcard ${rk ? (i === 0 ? 'k' : '') : 'plain'}" title="${rk ? rk.t : ''}">${rk ? rk.c : i + 1}</span>
+            <span class="cdot" style="background:${colorOf(p)}" title="Line colour on the chart"></span>
+            <span class="who"><b>${esc(p.name)}</b>${rk ? `<span class="title">${rk.t}${i === 0 ? ' 👑' : ''}</span>` : ''}</span>
+            <span class="delta ${d > 0 ? 'pos' : ''} ${d < 0 ? 'sc-neg' : ''}">${d ? (d > 0 ? '+' : '') + d : ''}</span>
+            <span class="total num ${final[p.id] < 0 ? 'sc-neg' : ''}">${final[p.id]}</span></li>`;
+        }).join('')}</ol>
+        <p class="hint" style="margin:10px 0 0">${last ? `Change shown is from hand ${last.round_no}.` : 'Scores appear after the first hand.'}</p>
+      </div>
+    </div>
+
+    <div class="bottom">
+      <div class="panel">
+        <h2>Hands <span class="hi">· હિસાબ</span></h2>
+        ${rounds.length ? `<div class="sheet-wrap">
+          <table class="sheet">
+            <thead><tr><th style="text-align:left">Hand</th><th>Bidder</th><th>Bid</th><th>Partners</th><th>Trump</th><th>Result</th>
+              ${G.players.map(p => `<th style="border-bottom:3px solid ${colorOf(p)}">${pn(p)}</th>`).join('')}</tr></thead>
+            <tbody>${rounds.map((r, i) => `<tr data-hand="${r.id}" class="${r.id === KT.editId ? 'sel' : ''}" title="Click to edit">
+                <td class="lbl">H${r.round_no}</td>
+                <td><b>${esc(pById(r.bidder_id).name)}</b></td>
+                <td class="num">${r.bid}</td>
+                <td class="muted">${r.partners.length ? r.partners.map(id => esc(pById(id).name)).join(', ') : '–'}</td>
+                <td>${r.trump ? suitHtml(r.trump) : '<span class="muted">–</span>'}</td>
+                <td><span class="res ${r.won ? 'w' : 'l'}">${r.won ? 'Jitya' : 'Harya'}</span></td>
+                ${G.players.map(p => { const v = r.scores[p.id];
+                  return `<td><div class="cell"><span class="sc"><span class="rs ${v > 0 ? 'hit' : 'miss'} ${v < 0 ? 'sc-neg' : ''}">${v > 0 ? '+' : ''}${v}</span><span class="tt">Σ ${after[i][p.id]}</span></span></div></td>`; }).join('')}
+              </tr>`).join('')}</tbody>
+            <tfoot><tr><td class="lbl" colspan="6">Total</td>${G.players.map(p => `<td class="num">${final[p.id]}</td>`).join('')}</tr></tfoot>
+          </table></div>` : '<p class="hint">Saved hands show up here. Click one to edit it.</p>'}
+      </div>
+      <div class="panel">
+        <h2>Score trend <span class="hi">· ચડ-ઉતર</span></h2>
+        <div class="chart-box"><canvas id="trend" aria-label="Running total per player by hand"></canvas></div>
+        ${chartEmojiPills()}
+      </div>
+    </div>`;
+
+  // Form interactions (state lives in KT; re-render on each change)
+  const panel = app.querySelector('.entry-panel');
+  panel.addEventListener('click', async e => {
+    const t = e.target.closest('button'); if (!t || t.disabled) return;
+    if (t.dataset.bidder) { KT.bidder = +t.dataset.bidder; KT.partners.delete(KT.bidder); return renderKT(); }
+    if (t.dataset.partner) { const id = +t.dataset.partner; KT.partners.has(id) ? KT.partners.delete(id) : KT.partners.add(id); return renderKT(); }
+    if (t.dataset.trump) { KT.trump = KT.trump === t.dataset.trump ? null : t.dataset.trump; return renderKT(); }
+    if (t.dataset.quick) { KT.bid = +t.dataset.quick; return renderKT(); }
+    if (t.dataset.bstep) { KT.bid = Math.max(5, (KT.bid || 0) + +t.dataset.bstep); return renderKT(); }
+    if (t.dataset.won) return ktSave(t.dataset.won === '1');
+  });
+  const bidEl = document.getElementById('ktbid');
+  bidEl.addEventListener('change', () => { KT.bid = Math.max(0, Math.floor(+bidEl.value || 0)); renderKT(); });
+  const cancel = document.getElementById('ktcancel'); if (cancel) cancel.onclick = () => { ktReset(); renderKT(); };
+  const del = document.getElementById('ktdel');
+  if (del) del.onclick = async () => {
+    if (!confirm(`Delete hand ${handNo}? This cannot be undone.`)) return;
+    G = await api('DELETE', `/api/games/${G.game.id}/kt-rounds/${KT.editId}`); ktReset(); renderKT(); toast('Hand deleted');
+  };
+  app.querySelectorAll('[data-hand]').forEach(tr => tr.onclick = () => {
+    ktLoad(G.rounds.find(r => r.id === +tr.dataset.hand)); renderKT(); scrollTo({ top: 0, behavior: 'smooth' });
+  });
+  wireEmojiPills(renderKT);
+  drawTrend(['Start', ...rounds.map(r => `H${r.round_no}`)], p => [0, ...after.map(a => a[p.id])]);
+}
+
+async function ktSave(won) {
+  const body = { bidder_id: KT.bidder, bid: KT.bid, partner_ids: [...KT.partners], won, trump: KT.trump };
+  const name = pById(KT.bidder).name, x = KT.bid, editing = KT.editId != null;
+  try {
+    G = editing ? await api('PUT', `/api/games/${G.game.id}/kt-rounds/${KT.editId}`, body)
+                : await api('POST', `/api/games/${G.game.id}/kt-rounds`, body);
+    ktReset(); renderKT();
+    toast(editing ? 'Hand updated ✓' : won ? `Shabash ${name}! ${x} ni boli puri 🎉` : `Arere! ${name} ${x} chuki gaya 😅`);
+  } catch (e) { document.getElementById('kterr').textContent = e.message; }
 }
 
 route();
