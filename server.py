@@ -27,6 +27,7 @@ STATIC = {
     "/chart.umd.min.js": ("chart.umd.min.js", "application/javascript"),
 }
 TRUMPS = ["spades", "diamonds", "clubs", "hearts"]  # no no-trump round
+RANKS = ["A", "K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2"]
 DEFAULT_EMOJIS = ["🦁", "🐯", "🐼", "🦊", "🐸", "🐵", "🦄", "🐙", "🐧", "🐨"]
 
 SCHEMA = """
@@ -73,6 +74,7 @@ CREATE TABLE IF NOT EXISTS kt_rounds (
   bid INTEGER NOT NULL,
   won INTEGER NOT NULL,
   trump TEXT,
+  called TEXT NOT NULL DEFAULT '[]',  -- partner cards called: [{"rank","suit","nth"}], nth 1/2 for two decks
   created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 CREATE TABLE IF NOT EXISTS kt_partners (
@@ -125,6 +127,7 @@ def kt_rounds(conn, gid, player_ids):
         sc = kt_scores(player_ids, r["bidder_id"], partners, r["bid"], r["won"])
         out.append({"id": r["id"], "round_no": i + 1, "bidder_id": r["bidder_id"], "bid": r["bid"],
                     "won": bool(r["won"]), "trump": r["trump"], "partners": partners,
+                    "called": json.loads(r["called"] or "[]"),
                     "scores": {str(k): v for k, v in sc.items()}})
     return out
 
@@ -149,12 +152,34 @@ def save_kt_round(conn, gid, body, rid=None):
         raise ApiError("Say whether the bidder won")
     if trump is not None and trump not in TRUMPS:
         raise ApiError("Unknown trump suit")
+    max_partners = -(-len(players) // 2)  # ceil(n/2)
+    called = []
+    for c in body.get("called") or []:
+        card = {"rank": str(c.get("rank")), "suit": c.get("suit"), "nth": int(c.get("nth") or 1)}
+        if card["rank"] not in RANKS or card["suit"] not in TRUMPS or card["nth"] not in (1, 2):
+            raise ApiError("Unknown called card")
+        if any(card == {k: d[k] for k in ("rank", "suit", "nth")} for d in called):
+            raise ApiError("That card is already called")
+        holder = c.get("player_id")
+        if holder is not None:
+            holder = int(holder)
+            if holder not in players:
+                raise ApiError("The card's holder must be a player in this game")
+        card["player_id"] = holder
+        called.append(card)
+    # Partners are whoever turned up holding a called card (the bidder holding one doesn't count)
+    partners = sorted(set(partners) | {c["player_id"] for c in called if c["player_id"] is not None} - {bidder})
+    if len(partners) > max_partners:
+        raise ApiError(f"At most {max_partners} partners with {len(players)} players")
+    if len(called) > max_partners:
+        raise ApiError(f"At most {max_partners} cards can be called with {len(players)} players")
+    called_json = json.dumps(called)
     if rid is None:
-        rid = conn.execute("INSERT INTO kt_rounds(game_id, bidder_id, bid, won, trump) VALUES (?,?,?,?,?)",
-                           (gid, bidder, bid, int(won), trump)).lastrowid
+        rid = conn.execute("INSERT INTO kt_rounds(game_id, bidder_id, bid, won, trump, called) VALUES (?,?,?,?,?,?)",
+                           (gid, bidder, bid, int(won), trump, called_json)).lastrowid
     else:
-        cur = conn.execute("UPDATE kt_rounds SET bidder_id=?, bid=?, won=?, trump=? WHERE id=? AND game_id=?",
-                           (bidder, bid, int(won), trump, rid, gid))
+        cur = conn.execute("UPDATE kt_rounds SET bidder_id=?, bid=?, won=?, trump=?, called=? WHERE id=? AND game_id=?",
+                           (bidder, bid, int(won), trump, called_json, rid, gid))
         if not cur.rowcount:
             raise ApiError("Round not found", 404)
         conn.execute("DELETE FROM kt_partners WHERE round_id=?", (rid,))
@@ -413,6 +438,9 @@ def init_db():
         # Older databases: add the game type column
         if "kind" not in [c[1] for c in conn.execute("PRAGMA table_info(games)")]:
             conn.execute("ALTER TABLE games ADD COLUMN kind TEXT NOT NULL DEFAULT 'judgement'")
+        # Older databases: add the called-cards column for Kaadi Tiri hands
+        if "called" not in [c[1] for c in conn.execute("PRAGMA table_info(kt_rounds)")]:
+            conn.execute("ALTER TABLE kt_rounds ADD COLUMN called TEXT NOT NULL DEFAULT '[]'")
         # Older databases: add the emoji column and give existing players one
         if "emoji" not in [c[1] for c in conn.execute("PRAGMA table_info(players)")]:
             conn.execute("ALTER TABLE players ADD COLUMN emoji TEXT")
