@@ -4,6 +4,8 @@ A scorekeeper's dashboard for two card games popular in India (and Gujarat in pa
 **Judgement** (also called Kachuful / Oh Hell) and **Kaadi Tiri** (Kali Teeri, "black three").
 The games are played with real cards at the table; this app is the score sheet. Pick the game when you start a new one.
 
+> **Also try [Mindi Coat](https://dhruvsatyapanthi007.github.io/mindicoat/)** ([code](https://github.com/dhruvsatyapanthi007/mindicoat)): play Mindi Coat online with friends on your phones, or against computer players. It installs as an app from the browser.
+
 ## Judgement
 
 - **Round setup** — cards go 1 → n → n → 1 (the peak round twice, optional). Trump rotates ♠ ♦ ♣ ♥, no no-trump round.
